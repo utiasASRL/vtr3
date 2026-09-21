@@ -149,6 +149,7 @@ MacroPlan buildMacroPlan(const GraphContext& micro, SVertex root,
   }
 
   std::map<SEdge, MacroEdge> macros;
+  std::vector<SEdge> order;  // discovery order; see MacroPlan::order
   std::map<SVertex, std::vector<SVertex>> neighbors;
   std::map<SEdge, double> travel;
 
@@ -187,6 +188,7 @@ MacroPlan buildMacroPlan(const GraphContext& micro, SVertex root,
 
       const SEdge key = canonical_edge(u, v);
       auto existing = macros.find(key);
+      if (existing == macros.end()) order.push_back(key);
       if (existing == macros.end() || cost < existing->second.travel_time) {
         MacroEdge m;
         m.u = u;
@@ -207,6 +209,7 @@ MacroPlan buildMacroPlan(const GraphContext& micro, SVertex root,
   MacroPlan plan;
   plan.context = GraphContext(std::move(neighbors), std::move(travel), micro.goal);
   plan.macros = std::move(macros);
+  plan.order = std::move(order);
   plan.root = root;
   return plan;
 }

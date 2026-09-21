@@ -259,6 +259,42 @@ struct WaitStrategyConfig {
   // p_block is no longer configured here: it is always computed from observed data
   // (obstacle_episodes / edges_traversed; 0/0 -> 0) inside GlobalObstacleStats.
   std::map<std::string, double> type_weights;  // Probability distribution over types
+  // P(class | a FRESH obstacle spawns), for the SPARROW search's imagined
+  // future blockages. Leave empty to reuse type_weights, which is right
+  // whenever the only thing known about the classes is how often each was
+  // ENCOUNTERED - a learned deployment. It is wrong when the true clearance
+  // laws are handed over (the video / oracle setting): a class that clears in
+  // 40 s must spawn ~8x as often as one that lasts 313 s to hold the same
+  // share of the blocked edges, so reusing the encounter share understates
+  // the spawn rate and over-populates the imagined graph with slow classes.
+  // Mirrors the simulator's oracle model, which keeps both vectors
+  // (vtr3_sim/pomcp/oracle_model.py: class_probs for spawning,
+  // _blocked_posterior for the age-conditioned posterior).
+  std::map<std::string, double> spawn_type_weights;
+  /**
+   * \brief Class names in DECLARATION order (route_planning.obstacle_strategy.classes).
+   *
+   * The order is part of the model, not presentation. sample_class walks the
+   * class list accumulating probabilities until it passes one uniform draw, so
+   * the order decides which class a given draw produces. type_weights is a
+   * std::map and hands back alphabetical order ("chair", "person"), while the
+   * simulator uses its config's declaration order ("person", "chair") - so the
+   * same random number picked a person there and a chair here, and the two
+   * particle sets were populated with different obstacles from the very first
+   * draw. Empty falls back to type_weights' own (alphabetical) order.
+   */
+  std::vector<std::string> class_order;
+  // E[D], the mean LIFETIME of a spawned obstacle, for the SPARROW search's
+  // Little's-law spawn rate (lambda = p_block * num_edges / E[D]).
+  // <= 0 derives it from the KM fits, which is the only option when the KM is
+  // all the robot has - but it is an approximation, because KM is fit to the
+  // waits the robot OBSERVES, and those are residuals at encounter, whose
+  // mean is E[D^2]/(2 E[D]), not E[D]. On these two laws that is 191 s
+  // against a true 71 s, so the derived rate is 2.6x too low and the search
+  // imagines far fewer new blockages than there will be. Set this whenever
+  // the true clearance laws are known (the video / oracle setting); the
+  // simulator's oracle does exactly this (oracle_model.py: _mean_duration).
+  double spawn_mean_duration_s = -1.0;
   
   // Robot speed (for computing edge travel times)
   double robot_speed_mps = 1.0;

@@ -69,32 +69,83 @@ constexpr double kInf = std::numeric_limits<double>::infinity();
 // ---------------------------------------------------------------------------
 // RNG (cloneable stream; ports rng.FastRNG semantics we rely on)
 // ---------------------------------------------------------------------------
+/**
+ * \brief splitmix64 stream, bit-for-bit identical to vtr3_sim's FastRNG.
+ *
+ * This has to be the SAME ALGORITHM as the simulator's, not merely a good
+ * one. Every number in the paper comes from the simulator, and a decision the
+ * robot takes can only be checked against it if, given the same seed and the
+ * same sequence of draws, the two produce the same stream. With
+ * std::mt19937_64 here and splitmix64 there they share nothing but the seed:
+ * the particle sets differ, the rollouts differ, and two implementations that
+ * are in fact identical still disagree on any decision that is close.
+ *
+ * Matches vtr3_sim/pomcp/rng.py exactly:
+ *   next_u64  - splitmix64 with the golden-ratio gamma
+ *   uniform   - (next_u64() >> 11) * 2^-53, NOT a uniform_real_distribution
+ *               (whose mapping from bits to doubles is implementation-defined)
+ *   integer   - int(uniform() * n) % n, NOT next_u64() % n
+ *   exponential - -scale * log(1 - uniform())
+ * State is a single 64-bit integer, so cloning a particle is trivial.
+ */
 class Rng {
  public:
-  explicit Rng(uint64_t seed = 0x5EED) : gen_(seed) {}
-  double uniform() { return uni_(gen_); }               // [0,1)
+  explicit Rng(uint64_t seed = 0x5EED) : state_(seed) {}
+
+  uint64_t next_u64() {
+    state_ += 0x9E3779B97F4A7C15ULL;
+    uint64_t z = state_;
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+    return z ^ (z >> 31);
+  }
+
+  /// Uniform in [0, 1), from the top 53 bits (FastRNG.random).
+  double uniform() {
+    return static_cast<double>(next_u64() >> 11) * (1.0 / 9007199254740992.0);
+  }
+
   double exponential(double mean) {
     if (mean <= 0.0) return 0.0;
-    double u = std::max(1e-12, 1.0 - uniform());
+    const double u = 1.0 - uniform();  // avoid log(0)
     return -mean * std::log(u);
   }
-  uint64_t integer(uint64_t n) {                        // [0, n)
-    return n ? gen_() % n : 0;
+
+  /// Uniform integer in [0, n) (FastRNG.integers).
+  uint64_t integer(uint64_t n) {
+    if (n == 0) return 0;
+    return static_cast<uint64_t>(uniform() * static_cast<double>(n)) % n;
   }
-  Rng clone() const { return *this; }                   // copies state
-  uint64_t raw() { return gen_(); }
+
+  Rng clone() const { return *this; }  // copies state
+  uint64_t raw() { return next_u64(); }
+  uint64_t state() const { return state_; }
 
  private:
-  std::mt19937_64 gen_;
-  std::uniform_real_distribution<double> uni_{0.0, 1.0};
+  uint64_t state_;
 };
 
-/// Deterministic seed derivation (splitmix-style), mirrors rng.derive_seed.
-inline uint64_t derive_seed(uint64_t base, uint64_t stream) {
-  uint64_t z = base + 0x9E3779B97F4A7C15ULL * (stream + 1);
-  z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
-  z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
-  return z ^ (z >> 31);
+/**
+ * \brief Combine seed components into a 64-bit seed (rng.derive_seed).
+ *
+ * FNV-1a with an extra xor-shift per component, variadic like the Python.
+ * The previous splitmix-style two-argument version claimed to mirror it and
+ * did not, so the same nominal seed started the two implementations on
+ * different streams even where everything else agreed.
+ */
+inline uint64_t derive_seed_fold(uint64_t h, uint64_t p) {
+  h ^= p;
+  h *= 0x100000001B3ULL;
+  h ^= h >> 29;
+  return h;
+}
+
+template <typename... Rest>
+inline uint64_t derive_seed(uint64_t first, Rest... rest) {
+  uint64_t h = 0xCBF29CE484222325ULL;
+  for (const uint64_t p : {first, static_cast<uint64_t>(rest)...})
+    h = derive_seed_fold(h, p);
+  return h;
 }
 
 // ---------------------------------------------------------------------------
@@ -102,7 +153,17 @@ inline uint64_t derive_seed(uint64_t base, uint64_t stream) {
 // ---------------------------------------------------------------------------
 struct SparrowModel {
   std::vector<std::string> class_names;
+  // P(class | an obstacle is present) -- the OCCUPANCY share, which is what
+  // the robot counts (one encounter per blockage it meets) and what the
+  // age-conditioned class posterior is built from.
   std::vector<double> class_probs;       // aligned with class_names
+  // P(class | a FRESH obstacle is spawning). This is NOT class_probs: a class
+  // that clears quickly must spawn more often to hold the same share of the
+  // occupied edges, so the two differ by a factor of the mean duration
+  // (spawn_k ~ occupancy_k / E[D_k]). The simulator's oracle model keeps both
+  // for exactly this reason; the learned model has only encounter counts and
+  // so reuses one for both, which is what an empty vector here means.
+  std::vector<double> spawn_class_probs;
   double p_block = 0.0;                  // steady-state edge occupancy
   double spawn_rate_hz = 0.0;            // Little's law: p_block*E/E[R]
   int num_edges = 1;                     // blockable edge count
@@ -179,9 +240,21 @@ struct ActiveObs {
 class ObstacleProcess {
  public:
   ObstacleProcess() = default;
+  /**
+   * \param spawn_rate_hz  Little's law rate for `model->num_edges` edges.
+   * \param spawn_weights  Relative spawn weight per edge of `edges`, aligned
+   *        by index (nullptr = uniform). The TOTAL rate stays `spawn_rate_hz`
+   *        (Little's law is already applied with the micro edge count); the
+   *        weights only decide WHICH edge a spawn lands on, in proportion to
+   *        w, so that a corridor of n micro-edges receives n times the share
+   *        of a single one. This is calendar.AbsoluteTimeObstacleProcess's
+   *        split. Drawing uniformly instead, as this did, gave an 80-edge
+   *        corridor the same arrival rate as a 1-edge one.
+   */
   ObstacleProcess(const std::vector<SEdge>* edges, double spawn_rate_hz,
                   const SparrowModel* model, Rng rng, double t0,
-                  bool no_adjacent_blocking = false);
+                  bool no_adjacent_blocking = false,
+                  const std::vector<double>* spawn_weights = nullptr);
 
   double time() const { return t_; }
   const ActiveObs* obstacle_on(const SEdge& e) const;
@@ -203,10 +276,13 @@ class ObstacleProcess {
  private:
   void process_clearance();
   void process_spawn(double t_spawn);
+  /// Index into `*edges_`, drawn in proportion to the spawn weights.
+  size_t draw_edge_index();
   double draw_next_spawn(double t_from);
 
   const std::vector<SEdge>* edges_ = nullptr;  // shared topology (not owned)
-  double spawn_rate_hz_ = 0.0;
+  double spawn_rate_hz_ = 0.0;   // total rate over *edges_
+  std::vector<double> cumweights_;  // empty = uniform edge choice
   const SparrowModel* model_ = nullptr;        // shared sampler (not owned)
   bool no_adjacent_blocking_ = false;
   Rng rng_;
@@ -402,6 +478,17 @@ class ParticleBelief {
    */
   void setEdgeWeights(const std::map<SEdge, double>& raw);
 
+  /**
+   * \brief Iterate edges in this order when drawing particles.
+   *
+   * The per-edge Bernoulli/class/residual draws come off one stream, so the
+   * order decides which draw lands on which corridor. vtr3_sim iterates
+   * ProcessTopology.edges, which that constructor SORTS - the same order
+   * `ctx->edges` already holds - so the default (an empty vector) is the
+   * matching one and this exists only for a caller that needs another.
+   */
+  void setEdgeOrder(const std::vector<SEdge>& order);
+
   /// Steady-state occupancy the belief assigns to one edge under the frozen
   /// model. With contracted weights set this is the COMPOSED corridor
   /// occupancy; without them, the flat p_block. Public for diagnostics and
@@ -411,6 +498,28 @@ class ParticleBelief {
  private:
   /// Relative spawn rate multiplier for one edge (mean-normalised).
   double weight_edge(const SEdge& edge) const;
+
+  /**
+   * \brief Spawn weights for the forward process, aligned with `ctx_->edges`.
+   *
+   * These are the UNNORMALISED weights (`edge_p_`), not the mean-normalised
+   * `edge_weight_`: the forward process needs the absolute rate, and
+   * `spawn_rate_hz / num_edges` is the rate of ONE MICRO-edge, so the total
+   * over the contracted graph is that times the micro-edge count - which is
+   * exactly the summed unnormalised weight. Mean-normalising instead gives a
+   * total of `spawn_rate_hz`, i.e. the whole taught graph spawning at the rate
+   * of a single micro-edge. Returns nullptr when planning uncontracted, where
+   * the edges ARE micro-edges and uniform selection is correct.
+   */
+  const std::vector<double>* spawnWeightsForEdges() const;
+
+  /// The edge list particles are drawn over: the explicit order when one was
+  /// set, otherwise the context's own (sorted) list.
+  void rebuildSpawnWeights();
+
+  const std::vector<SEdge>& drawOrder() const {
+    return edge_order_.empty() ? ctx_->edges : edge_order_;
+  }
 
   PlannerState new_particle(const LocalObservation& local);
   void install_tracked_blockage(PlannerState& st, const LocalObservation& local,
@@ -432,6 +541,10 @@ class ParticleBelief {
   // Empty in uncontracted planning: p_edge() then returns the flat p_block.
   std::map<SEdge, double> edge_p_;       // absolute, UNNORMALISED
   std::map<SEdge, double> edge_weight_;  // relative, mean-normalised
+  // edge_p_ projected onto drawOrder(); rebuilt by setEdgeWeights/setEdgeOrder.
+  std::vector<double> spawn_weights_;
+  // Contraction discovery order (see setEdgeOrder); empty = ctx_->edges.
+  std::vector<SEdge> edge_order_;
 };
 
 // ---------------------------------------------------------------------------

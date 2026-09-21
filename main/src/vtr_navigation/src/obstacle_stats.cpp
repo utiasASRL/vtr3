@@ -16,6 +16,7 @@
  * \file obstacle_stats.cpp
  * \brief Implementation of GlobalObstacleStats with YAML persistence.
  */
+#include <algorithm>
 #include "vtr_navigation/obstacle_stats.hpp"
 
 #include <fstream>
@@ -248,10 +249,22 @@ std::map<std::string, double> GlobalObstacleStats::getTypeDistribution() const {
   
   std::map<std::string, double> dist;
   
-  // Match simulation's Dirichlet prior logic exactly:
-  // P(type) = (count + alpha) / (total + n_types * alpha)
-  // where alpha = 1.0 (uniform prior pseudo-count per type)
+  // Dirichlet prior, but pointed at the CONFIGURED class mixture rather than
+  // at uniform:
+  //   P(type) = (count_k + alpha * n_types * w_k) / (total + n_types * alpha)
+  // with w_k the normalised default_type_weights_ (uniform when none are set,
+  // which reproduces the previous alpha=1 behaviour exactly).
+  //
+  // With no observations this returns w_k, which is what the deployment
+  // configures it to be; with many observations the counts dominate and it
+  // converges to the empirical mixture, as before. The old form returned a
+  // flat 1/n at a cold start no matter what was configured, so a scenario
+  // whose true mixture is 20/80 was planned as 50/50 -- the configured
+  // weights only ever selected the class UNIVERSE and never its shape.
   const double alpha = 1.0;
+  double weight_total = 0.0;
+  for (const auto& kv : default_type_weights_)
+    weight_total += std::max(0.0, kv.second);
   
   // Get all known types from default_type_weights_ (defines the type universe)
   std::set<std::string> all_types;
@@ -273,7 +286,15 @@ std::map<std::string, double> GlobalObstacleStats::getTypeDistribution() const {
   for (const auto& obs_type : all_types) {
     auto it = type_counts_.find(obs_type);
     double count = (it != type_counts_.end()) ? static_cast<double>(it->second) : 0.0;
-    dist[obs_type] = (count + alpha) / total_with_prior;
+    double share = 1.0 / static_cast<double>(n_types);
+    if (weight_total > 0.0) {
+      auto wit = default_type_weights_.find(obs_type);
+      share = (wit != default_type_weights_.end())
+                  ? std::max(0.0, wit->second) / weight_total
+                  : 0.0;
+    }
+    dist[obs_type] =
+        (count + alpha * static_cast<double>(n_types) * share) / total_with_prior;
   }
   
   return dist;

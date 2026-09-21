@@ -71,6 +71,20 @@ struct MacroEdge {
 struct MacroPlan {
   GraphContext context;
   std::map<SEdge, MacroEdge> macros;
+  /**
+   * \brief Macro-edges in the order the contraction WALK discovered them.
+   *
+   * `macros` is sorted (it is a map); this is not. Used for ONE thing: the
+   * order of the ROOT ACTION list, because runner._macro_root_actions walks
+   * `plan.macros.items()` -- Python dict order, i.e. discovery order -- and
+   * root_explore_frac hands out its reserved simulations in list order, so
+   * the order decides which action gets the early rollouts.
+   *
+   * It is NOT the order the belief draws particles in: ProcessTopology sorts
+   * its edge list in its constructor, so the belief iterates sorted order,
+   * which is what GraphContext::edges already holds.
+   */
+  std::vector<SEdge> order;
   SVertex root = 0;
 
   /// First micro hop for driving the macro-edge (u, v); nullopt if unknown.

@@ -55,7 +55,7 @@
       # Real-world logging (HSHMAT)
       # =========================
       run_idx: 14                     # Match sim batch run_6 / seed 13 (base 7 + 6). run14 is person/chair real world exp 
-      graph_name: "sparrow_test3"  # Logs + learned data: ${VTRTEMP}/<graph_name>/run<run_idx>
+      graph_name: "sep12_4"  # Logs + learned data: ${VTRTEMP}/<graph_name>/run<run_idx>
       mission_time_limit: 2000.0      # Seconds; for success/failure logging (robot continues past this)
       
       # =========================
@@ -79,17 +79,19 @@
       # Controls how long to wait vs when to reroute
       obstacle_strategy:
         # Strategy type: always_wait | always_detour | rule_based | greedy_ctp | learned | sparrow
-        type: "sparrow"
+        type: "always_wait"
         
         # Maximum wait time (seconds) - used as upper bound for learned, and timeout for others
         # unknown_W_max is the fallback for any obstacle type not listed in W_max_per_type
         # (including obstacles classified as "unknown")
         unknown_W_max: 2000.0
+        # Matches the simulation's obstacle.W_max_per_type exactly. bin and
+        # sonotube are gone: the real-world protocol is person and chair only
+        # (paper Sec VI-A), and listing a class here or in type_weights is what
+        # puts it in the planner's class universe.
         W_max_per_type:
-          person: 300.0      # People typically move within 5 min
-          chair: 1000.0      # Chairs rarely move on their own
-          bin: 1000.0        # Bins rarely move on their own
-          sonotube: 1000.0   # Sonotubes (portable fake pillars) rarely move on their own
+          person: 50.0      # 99th pctile of its clearance law
+          chair: 825.0
 
         # For rule_based strategy: obstacle types to wait for (others will reroute)
         wait_types: ["person"]
@@ -110,72 +112,116 @@
         # Without them the built-in default (person .6 / chair .15 / bin .15 /
         # sonotube .1) puts 40% of the mass on the three slow classes and an
         # unknown obstacle looks like a ~58 s wait instead of ~13 s.
+        # The class UNIVERSE, not just the weights. GlobalObstacleStats smooths
+        # the observed counts with a Dirichlet(1) prior over the KEYS of
+        # type_weights, so a class listed at 0.0 is NOT switched off: it keeps
+        # its pseudo-count and, at a cold start, 1/n of the prior mass.
+        # Measured: with bin and sonotube listed at 0.0 the planner's frozen
+        # model came out at 25% each of person/chair/bin/sonotube, which is the
+        # four-class posterior the simulation records as never letting the class
+        # gate open (scratch_ablations.py:1391 - "the planner then re-waits
+        # forever because elapsed time never changes its estimate"). Naming the
+        # two classes is what actually makes it a two-class deployment.
+        classes: ["person", "chair"]
         type_weights:
-          person: 0.944265   # 2626/2781 encounters
-          chair: 0.042790   # 119/2781 encounters
-          bin: 0.010068   # 28/2781 encounters
-          sonotube: 0.002877   # 8/2781 encounters
+          person: 0.200      # P(class | an obstacle is THERE):
+          chair: 0.800       # the 20/80 encounter share of this scenario
+
+        # P(class | a FRESH obstacle spawns), for the search's imagined future
+        # blockages. This is NOT type_weights: type_weights is P(class | an
+        # obstacle is THERE), and a class that clears in 40 s has to spawn far
+        # more often than one that lasts 313 s to hold the same share of the
+        # blocked edges. The simulation's oracle keeps both mixtures for this
+        # reason (oracle_model.py: class_probs for spawning, _blocked_posterior
+        # for the age posterior); these are its class_probs.
+        spawn_type_weights:
+          person: 0.793400
+          chair: 0.206600
+
+        # E[D] for the Little's-law spawn rate, lambda = p_block * E / E[D].
+        # Derived from the KM fits when unset, but KM is fit to the waits the
+        # robot OBSERVES, which are residuals at encounter (mean 191 s over
+        # these two laws) rather than durations (71 s) - so the derived rate is
+        # 2.6x too low and the search imagines 2.6x too few new blockages.
+        # Verified: with 70.95 the total imagined spawn rate matches the
+        # simulation's to 0.02% (0.098887 vs 0.098912 /s).
+        spawn_mean_duration_s: 24.52
+
 
         # GROUND-TRUTH survival functions: the robot is handed the true
         # clearance law of each class instead of learning it.
         #
-        # 64 uncensored samples per class at the (i+0.5)/65 quantiles of the
-        # simulation's ground-truth lognormals, plus ONE right-censored sample
-        # at the 64.5/65 quantile. The censored one is not optional:
-        # Kaplan-Meier drops to exactly S=0 at the largest UNCENSORED sample,
-        # so an all-uncensored seed makes the planner certain that a chair it
-        # has watched for longer than the largest seed has already gone -
-        # S(t)=0, residual wait 0 - and it will wait forever for a clearance
-        # it believes is about to happen. With the censored sample, S stays
-        # positive there and the exponential tail fits.
-        #
-        # Verified against the real SurvivalModel (vtr_navigation): truncated
-        # mean within 1% of analytic and max |S_km - S_true| < 0.01 -
-        # person 7.41 vs 7.39 s, chair 88.98 vs 88.68 s, bin 126.03 vs
-        # 125.57 s, sonotube 221.04 vs 218.83 s.
-        #
-        # Applied on a COLD start only: SparrowStrategy skips a class whose
-        # survival_stats.yaml already holds at least this many samples, so a
-        # resumed deployment keeps its own banked data. Comment both blocks
-        # out to learn the fits from scratch again - every class then falls
-        # back to prior_residual_mean = 60 s until its first sample, which is
-        # why an unknown chair kept looking like a good thing to wait for.
-        # 'unknown' is deliberately absent: an unlabeled obstacle must stay a
-        # mixture over the classes, not a class of its own.
         seed_samples:
-          # person: lognormal(mu=1.84884, sigma=0.55) -> median 6.4s, mean 7.4s
-          person: [1.68, 2.12, 2.40, 2.62, 2.81, 2.98, 3.14, 3.29, 3.43, 3.56, 3.69, 3.81, 3.94, 4.06,
-            4.18, 4.30, 4.41, 4.53, 4.64, 4.76, 4.88, 4.99, 5.11, 5.23, 5.35, 5.47, 5.59, 5.71,
-            5.83, 5.96, 6.09, 6.22, 6.35, 6.49, 6.63, 6.77, 6.92, 7.07, 7.22, 7.38, 7.55, 7.72,
-            7.90, 8.08, 8.27, 8.48, 8.69, 8.91, 9.14, 9.39, 9.66, 9.94, 10.25, 10.58, 10.94,
-            11.34, 11.78, 12.28, 12.85, 13.53, 14.35, 15.39, 16.81, 19.02]
-          # chair: lognormal(mu=4.33374, sigma=0.55) -> median 76.2s, mean 88.7s
-          chair: [20.11, 25.46, 28.81, 31.47, 33.75, 35.79, 37.67, 39.43, 41.11, 42.71, 44.27, 45.78,
-            47.25, 48.71, 50.14, 51.55, 52.95, 54.35, 55.74, 57.13, 58.52, 59.92, 61.32, 62.73,
-            64.15, 65.59, 67.04, 68.51, 70.00, 71.52, 73.06, 74.63, 76.23, 77.86, 79.54, 81.25,
-            83.01, 84.81, 86.67, 88.59, 90.58, 92.63, 94.76, 96.98, 99.29, 101.71, 104.25,
-            106.92, 109.74, 112.72, 115.90, 119.31, 122.97, 126.94, 131.27, 136.04, 141.35,
-            147.36, 154.25, 162.36, 172.19, 184.66, 201.66, 228.25]
-          # bin: lognormal(mu=4.65296, sigma=0.6) -> median 104.9s, mean 125.6s
-          bin: [24.51, 31.71, 36.29, 39.96, 43.12, 45.98, 48.62, 51.11, 53.48, 55.76, 57.98, 60.14,
-            62.26, 64.35, 66.41, 68.46, 70.49, 72.52, 74.55, 76.58, 78.62, 80.66, 82.73, 84.80,
-            86.91, 89.03, 91.18, 93.37, 95.59, 97.85, 100.15, 102.50, 104.90, 107.35, 109.87,
-            112.45, 115.11, 117.85, 120.67, 123.59, 126.61, 129.74, 133.01, 136.41, 139.96,
-            143.68, 147.59, 151.72, 156.09, 160.73, 165.68, 170.99, 176.73, 182.96, 189.78,
-            197.32, 205.74, 215.29, 226.31, 239.31, 255.16, 275.38, 303.16, 347.01]
-          # sonotube: lognormal(mu=5.1511, sigma=0.7) -> median 172.6s, mean 220.5s
-          sonotube: [31.65, 42.75, 50.04, 55.98, 61.19, 65.95, 70.39, 74.61, 78.66, 82.59, 86.43, 90.21,
-            93.93, 97.61, 101.27, 104.92, 108.57, 112.22, 115.89, 119.58, 123.30, 127.06,
-            130.86, 134.70, 138.60, 142.56, 146.59, 150.70, 154.89, 159.16, 163.54, 168.02,
-            172.62, 177.35, 182.21, 187.22, 192.39, 197.73, 203.27, 209.02, 214.99, 221.22,
-            227.72, 234.52, 241.66, 249.18, 257.12, 265.52, 274.46, 284.00, 294.24, 305.28,
-            317.25, 330.34, 344.75, 360.77, 378.81, 399.40, 423.34, 451.86, 486.96, 532.27,
-            595.43, 697.07]
+          # These are quantiles of the RESIDUAL-AT-ENCOUNTER law, not of the
+          # clearance-duration law, and that distinction is the single biggest
+          # lever in the whole configuration.
+          #
+          # The KM fit is built from what the robot MEASURES: it meets a
+          # blockage that has already been there for an unknown time and times
+          # how long until it clears. That is the length-biased residual, whose
+          # mean is E[D^2] / (2 E[D]) - and these laws are heavy-tailed, so the
+          # gap is large: E[R] is 99.6 s for person against a 40.0 s mean
+          # duration, and 780.4 s for chair against 313.4 s. The simulation
+          # seeds its own KM exactly this way (simulator.py: accept a duration
+          # C with probability C / c_max, then draw R ~ U(0, C)) and its oracle
+          # keeps a separate residual-at-encounter table (oracle_model.py).
+          #
+          # Seeded from the duration law instead, the planner believes an
+          # encountered obstacle clears ~2.7x sooner than it does. MaxWait then
+          # looks cheap, the robot waits, the wait expires with the obstacle
+          # still there, and re-planning produces the same cheap estimate - the
+          # "waiting N seconds ... waiting M seconds ..." loop, from the model
+          # rather than from the wait FSM.
+          #
+          # 64 uncensored samples per class at the (i+0.5)/65 quantiles, plus
+          # ONE right-censored sample at the 64.5/65 quantile. The censored one
+          # is not optional: Kaplan-Meier drops to exactly S=0 at the largest
+          # UNCENSORED sample, so an all-uncensored seed makes the planner
+          # certain that an obstacle it has watched for longer than the largest
+          # seed has already gone - S(t)=0, residual wait 0 - and it waits
+          # forever for a clearance it believes is imminent. With the censored
+          # sample S stays positive there and the exponential tail fits.
+          #
+          # Verified through the real SurvivalModel against the simulation's
+          # oracle: E[R|person] 107.67 s vs 107.42 s, E[R|chair] 845.31 s vs
+          # 841.70 s (truncated at each class's W_max), both within 0.5%.
+          #
+          # Applied on a COLD start only: SparrowStrategy skips a class whose
+          # survival_stats.yaml already holds at least this many samples, so a
+          # resumed deployment keeps its banked data. 'unknown' is deliberately
+          # absent - an unlabeled obstacle must stay a mixture over the classes,
+          # not a class of its own.
+          #
+          # sep20_9 trap scenario. Both are quantiles of the
+          # RESIDUAL-AT-ENCOUNTER law (what the robot measures when it meets a
+          # blockage), not of the clearance-duration law.
+          #
+          # person: exp_mixture w_fast=0.7, duration means 3.0 s / 13.6 s
+          #   E[D] = 6.18 s, median 3.0 s, E[R at encounter] = 10.0 s.
+          #   Most people step aside in about three seconds; a few linger.
+          person: [0.0478292, 0.14527, 0.245178, 0.347664, 0.452849, 0.560862, 0.671838, 0.785923, 
+            0.903271, 1.02405, 1.14844, 1.27662, 1.40881, 1.54522, 1.68609, 1.83166, 1.98222, 
+            2.13805, 2.29947, 2.46682, 2.64047, 2.82083, 3.00831, 3.20338, 3.40656, 3.61839, 
+            3.83946, 4.07042, 4.31197, 4.56488, 4.82996, 5.10811, 5.4003, 5.70761, 6.03117, 
+            6.37222, 6.73213, 7.11237, 7.51454, 7.94036, 8.39172, 8.87071, 9.37958, 9.92081, 
+            10.4972, 11.1118, 11.7682, 12.4703, 13.2227, 14.0309, 14.9013, 15.8419, 16.8622, 
+            17.9743, 19.1938, 20.5408, 22.0427, 23.7368, 25.6772, 27.9452, 30.6718, 34.0883, 
+            38.6637, 45.6109]
+          # chair: exp_mixture w_fast=0.8, duration means 50.0 s / 274.7 s
+          #   E[D] = 94.9 s, median 44 s, E[R at encounter] = 180 s (3 min).
+          #   Most chairs are moved inside a minute; some sit for several.
+          #   The 18x separation from person is what makes the class label
+          #   worth paying for.
+          chair: [0.734742, 2.23181, 3.76711, 5.34248, 6.95987, 8.62139, 10.3293, 12.086, 13.8941, 
+            15.7563, 17.6758, 19.6557, 21.6996, 23.8112, 25.9948, 28.2547, 30.5958, 33.0234, 
+            35.5433, 38.1619, 40.886, 43.7232, 46.6818, 49.771, 53.0009, 56.3826, 59.9284, 63.6518, 
+            67.5679, 71.6935, 76.0469, 80.6488, 85.5219, 90.6913, 96.1852, 102.034, 108.273, 
+            114.938, 122.071, 129.716, 137.921, 146.74, 156.227, 166.443, 177.45, 189.318, 202.12, 
+            215.935, 230.853, 246.979, 264.432, 283.361, 303.948, 326.425, 351.094, 378.353, 
+            408.741, 443.012, 482.25, 528.093, 583.189, 652.206, 744.618, 884.926]
         seed_samples_censored:
-          person: [24.09]    # the 64.5/65 quantile
-          chair: [289.02]    # the 64.5/65 quantile
-          bin: [448.93]    # the 64.5/65 quantile
-          sonotube: [941.37]    # the 64.5/65 quantile
+          person: [60.55]   # the 64.5/65 quantile of the residual law
+          chair: [1186.68]  # the 64.5/65 quantile of the residual law
 
         # Debug visualization for learned policy
         # Saves plots of S(t), A_goal(C), A_avoid(W), J(W) on each obstacle episode
@@ -209,8 +255,8 @@
           # own mean instead of spanning every class. Empty list = use the
           # shared grid above.
           wait_durations_by_class:
-            person: [3.0, 9.0, 22.0]
-            chair: [13.0, 39.0, 104.0]
+            person: [3.0, 8.0, 15.0]   # spans E[R|person] = 10.0 s
+            chair: [20.0, 60.0, 150.0]  # E[R|chair] = 180 s
           # MEASURED on the 20:03 run: 17.1 s and 16.4 s of wall clock per VLM
           # call, against the 5.0 s the tree assumed - so Observe looked ~3x
           # cheaper than it is and the search over-ordered it. Cropping the
@@ -256,7 +302,7 @@
           #
           # Setting this >= 0 overrides p_block_live/teach_prior for the
           # PLANNER; the learned counters keep accumulating for the logs.
-          p_block_override: 0.03
+          p_block_override: 0.020
           planner_seed: 0             # 0 = time-derived; set >0 for reproducible searches
           # Continuity tolerance (s) for continuous edge monitoring. The
           # Navigator refreshes each in-view edge's last-confirmed time at
@@ -327,7 +373,14 @@
           # measured on a bin at 22:32:24, Traverse Q=123.187s/293 visits LOST
           # to MaxWait(120) Q=124.675s/375 visits, a 1.2% Q gap well inside
           # search noise that bought two more minutes of standing still.
-          robust_visit_frac: 0.75
+          #
+          # Set to 1.0 for the sim-parity video run: the simulation selects the
+          # most-VISITED root action with no cost override (solver.py, "robust
+          # child ... picking min-Q instead selects the winner's-curse arm
+          # whenever a lightly-visited action got lucky"), and every paper
+          # number comes from that rule. 0.75 is a robot-only deviation, so it
+          # cannot be in place while checking that the two agree.
+          robust_visit_frac: 1.0
           # Occupancy estimate (handoff sec. 1.5). These two go together:
           # p_block accuracy dominates planner compute, because a rollout only
           # reaches the goal if a whole route is clear - (1-p)^109 on sep12_4's
@@ -341,7 +394,7 @@
           # It was 23 for sparrow_test3 - leaving that in place on sep12_4 tells
           # the belief the graph was driven clear 23 times instead of 39, so the
           # Jeffreys occupancy comes out ~1.7x too high.
-          teach_prior: 39
+          teach_prior: 41
           # Corridor contraction (handoff sec. 2). The search plans over
           # CORRIDORS instead of taught edges: on sep12_4 that is 29 decision
           # vertices / 39 corridors instead of 664 vertices / 674 edges, which
@@ -352,7 +405,7 @@
           # Cap on one corridor's travel time; longer ones are split into
           # ceil(L/cap) equal pieces. 0 = no splitting, the deployment value:
           # the corner vertices below already break up sep12_4's long runs.
-          max_macro_len_s: 0.0
+          max_macro_len_s: 7.4
           # Corners kept as explicit decision vertices, "run:vertex,...".
           # These MUST be named on sep12_4: the automatic bounding-box rule
           # picks the wrong vertex on a non-rectangular building (the real
@@ -366,7 +419,7 @@
           # sparrow_test3's two bends and means nothing on this graph - neither
           # vertex constrains the contraction, so the long runs get swallowed
           # into single atomic corridors.
-          corner_vertices: "2:0,2:123,20:41,20:87,16:13,2:97,0:17,0:35,0:52,20:19"
+          corner_vertices: "0:66,11:33,15:20,2:0,2:26,20:19,24:7"
           # Knowledge-gradient exploration of the KM fits (paper Sec. IV-D;
           # exact port of pomcp/exploration.py, defaults = sim main-table
           # runs). Prices the value one more clearance-time sample has for

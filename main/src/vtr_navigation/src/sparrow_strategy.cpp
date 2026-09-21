@@ -19,6 +19,7 @@
 #include "vtr_navigation/sparrow_strategy.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <chrono>
 #include <cmath>
 #include <deque>
@@ -182,12 +183,45 @@ SparrowModel SparrowStrategy::snapshotModel(int num_edges) const {
   if (type_dist.empty()) type_dist = config_.type_weights;
   double total = 0.0;
   for (const auto& kv : type_dist) total += std::max(0.0, kv.second);
-  for (const auto& kv : type_dist) {
-    m.class_names.push_back(kv.first);
-    m.class_probs.push_back(total > 0.0 ? std::max(0.0, kv.second) / total
+
+  // Declaration order first (see WaitStrategyConfig::class_order), then any
+  // class the deployment has actually met that the config never named, so a
+  // newly observed type still enters the model - just after the declared ones.
+  std::vector<std::string> ordered;
+  for (const auto& name : config_.class_order)
+    if (type_dist.count(name)) ordered.push_back(name);
+  for (const auto& kv : type_dist)
+    if (std::find(ordered.begin(), ordered.end(), kv.first) == ordered.end())
+      ordered.push_back(kv.first);
+
+  for (const auto& name : ordered) {
+    const double w = type_dist.at(name);
+    m.class_names.push_back(name);
+    m.class_probs.push_back(total > 0.0 ? std::max(0.0, w) / total
                                         : 1.0 / type_dist.size());
-    if (survival_model_.hasData(kv.first)) {
-      m.fitted_classes.insert(kv.first);
+    if (survival_model_.hasData(name)) {
+      m.fitted_classes.insert(name);
+    }
+  }
+
+  // Spawn mixture: configured separately when the true laws are known,
+  // otherwise the encounter share (see WaitStrategyConfig::spawn_type_weights).
+  if (!config_.spawn_type_weights.empty()) {
+    double stotal = 0.0;
+    for (const auto& n : m.class_names) {
+      auto it = config_.spawn_type_weights.find(n);
+      stotal += (it != config_.spawn_type_weights.end())
+                    ? std::max(0.0, it->second)
+                    : 0.0;
+    }
+    if (stotal > 0.0) {
+      for (const auto& n : m.class_names) {
+        auto it = config_.spawn_type_weights.find(n);
+        const double w = (it != config_.spawn_type_weights.end())
+                             ? std::max(0.0, it->second)
+                             : 0.0;
+        m.spawn_class_probs.push_back(w / stotal);
+      }
     }
   }
 
@@ -202,6 +236,12 @@ SparrowModel SparrowStrategy::snapshotModel(int num_edges) const {
 
   // Spawn rate from Little's law so the model's steady state matches the
   // learned occupancy: lambda = p_block * num_edges / E[R].
+  // E[D] is the mean lifetime of a SPAWNED obstacle, so it is weighted by the
+  // spawn mixture. With only encounter counts the two coincide by assumption
+  // (and the simulator's learned model makes the same substitution); with the
+  // true laws they do not, and using the occupancy share here would put the
+  // spawn rate out by the ratio of the two means.
+  const bool have_spawn = m.spawn_class_probs.size() == m.class_names.size();
   double mixture_mean = 0.0;
   for (size_t i = 0; i < m.class_names.size(); ++i) {
     const double mean =
@@ -210,8 +250,11 @@ SparrowModel SparrowStrategy::snapshotModel(int num_edges) const {
                                 m.class_names[i],
                                 config_.getWMax(m.class_names[i])))
             : m.prior_residual_mean;
-    mixture_mean += m.class_probs[i] * mean;
+    mixture_mean +=
+        (have_spawn ? m.spawn_class_probs[i] : m.class_probs[i]) * mean;
   }
+  if (config_.spawn_mean_duration_s > 0.0)
+    mixture_mean = config_.spawn_mean_duration_s;
   m.spawn_rate_hz =
       (mixture_mean > 1e-9) ? m.p_block * m.num_edges / mixture_mean : 0.0;
   return m;
@@ -425,6 +468,9 @@ WaitDecision SparrowStrategy::planInternal(
   // Serialize against the costmap-driven monitoring updates.
   std::lock_guard<std::mutex> lock(state_mutex_);
   const auto& sp = config_.sparrow;
+  // Stale root statistics would make an aborted plan look like a decision.
+  last_root_actions_.clear();
+  last_planning_vertex_ = 0;
 
   if (!get_neighbors_ || !get_travel_time_) {
     CLOG(WARNING, "navigation")
@@ -901,6 +947,10 @@ WaitDecision SparrowStrategy::planInternal(
   ParticleBelief belief(&ctx, &model, sp.num_particles,
                         /*planner_no_adjacent_blocking=*/false, seed);
   // No-op when uncontracted, so the micro path keeps the flat p_block exactly.
+  // The belief draws particles in SORTED edge order, which ctx.edges already
+  // is. Not discovery order: ProcessTopology sorts its edge list in its
+  // constructor, so that is what vtr3_sim's belief iterates. Discovery order
+  // is the ROOT ACTION list's order and nothing else (see MacroPlan::order).
   if (contracted) belief.setEdgeWeights(macro_weights);
   belief.initialize(local);
 
@@ -1001,12 +1051,60 @@ WaitDecision SparrowStrategy::planInternal(
         << observed_edges_.size()
         << " edge(s) classified) - Observe withheld from the action set.";
   }
-  const auto root_actions = sparrow::valid_actions(
+  auto root_actions = sparrow::valid_actions(
       planning_vertex, root_statuses, pv_nbrs, root_classified,
       sp.wait_durations,
       /*allow_observe=*/sp.allow_observe && observe_budget_left,
       sp.wait_durations_by_class.empty() ? nullptr : &sp.wait_durations_by_class,
       root_edge_classes.empty() ? nullptr : &root_edge_classes);
+
+  // Reorder into the simulator's ROOT order, which is not its in-tree order.
+  //
+  // valid_actions lists every Traverse first (sorted neighbour order) and then
+  // the waits; runner._macro_root_actions instead walks the corridors in the
+  // contraction's DISCOVERY order and emits each corridor's own action -
+  // Traverse if it is free, else its MaxWait grid and Observe - before moving
+  // to the next. Both are "deterministically ordered", and they are different
+  // orders.
+  //
+  // It matters because root_explore_frac reserves a floor of the simulation
+  // budget and hands it out in list order, so the order decides which action
+  // gets the early rollouts. Measured with one particle and one rollout per
+  // action: the two implementations produced identical Q for the same action
+  // (28.2957 s, to the digit) but ran it against different actions, so the
+  // decisions disagreed while nothing was actually wrong with either search.
+  if (contracted && !macro_plan.order.empty()) {
+    std::vector<SAction> ordered;
+    ordered.reserve(root_actions.size());
+    std::vector<bool> taken(root_actions.size(), false);
+    auto take = [&](const std::function<bool(const SAction&)>& want) {
+      for (size_t i = 0; i < root_actions.size(); ++i) {
+        if (taken[i] || !want(root_actions[i])) continue;
+        taken[i] = true;
+        ordered.push_back(root_actions[i]);
+      }
+    };
+    for (const SEdge& e : macro_plan.order) {
+      if (e.first != planning_vertex && e.second != planning_vertex) continue;
+      const SVertex other =
+          (e.first == planning_vertex) ? e.second : e.first;
+      take([&](const SAction& a) {
+        return a.kind == SAction::TRAVERSE && a.first_hop == other;
+      });
+      // MaxWait grid in ascending W, then Observe - valid_actions already
+      // emits the grid sorted, and take() preserves relative order.
+      take([&](const SAction& a) {
+        return a.kind == SAction::MAXWAIT && a.edge == e;
+      });
+      take([&](const SAction& a) {
+        return a.kind == SAction::OBSERVE && a.edge == e;
+      });
+    }
+    // Anything the macro order did not account for keeps its place at the end
+    // rather than being dropped.
+    take([](const SAction&) { return true; });
+    root_actions = std::move(ordered);
+  }
   if (root_actions.empty()) {
     CLOG(WARNING, "navigation")
         << "HSHMAT SparrowStrategy: No root actions at vertex "
@@ -1097,6 +1195,23 @@ WaitDecision SparrowStrategy::planInternal(
           << "HSHMAT SparrowStrategy:   " << s.action.str()
           << "  visits=" << s.visits << "  Q=" << s.q_cost << "s";
     }
+  }
+
+  // Keep the root statistics for the sim/robot parity harness: what must
+  // match across the two implementations is the ORDERING of the root
+  // actions, not the Q-values (different RNG, different timing).
+  last_planning_vertex_ = planning_vertex;
+  last_root_actions_.clear();
+  last_root_actions_.reserve(result.root_actions.size());
+  for (const auto& s : result.root_actions) {
+    RootActionRecord r;
+    r.kind = static_cast<int>(s.action.kind);
+    r.edge = s.action.edge;
+    r.first_hop = s.action.first_hop;
+    r.W = s.action.W;
+    r.visits = s.visits;
+    r.q_cost = s.q_cost;
+    last_root_actions_.push_back(r);
   }
 
   if (!result.action.has_value()) {
@@ -1272,6 +1387,36 @@ void SparrowStrategy::updateMemoryAfterCensoredWait(
       it->second.t_last = std::max(it->second.t_last, t_after_wait);
     }
   }
+}
+
+std::vector<SparrowStrategy::RootActionRecord>
+SparrowStrategy::lastRootActions() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  return last_root_actions_;
+}
+
+uint64_t SparrowStrategy::lastPlanningVertex() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  return last_planning_vertex_;
+}
+
+void SparrowStrategy::resetEncounter() {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  observed_edges_.clear();
+  pending_observe_edge_.reset();
+}
+
+void SparrowStrategy::seedBlockedSighting(const sparrow::SEdge& e,
+                                          const std::string& label,
+                                          double t_first, double t_last) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  auto& m = memory_[e];
+  m.t_first = t_first;
+  m.t_last = std::max(t_first, t_last);
+  m.label = label;
+  // The contraction keeps believed-blocked micro-edges explicit, so a new
+  // remembered blockage invalidates the cached macro plan.
+  macro_cache_valid_ = false;
 }
 
 void SparrowStrategy::clearMemoryForEdge(const EdgeId& edge) {

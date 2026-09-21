@@ -96,10 +96,14 @@ std::map<std::string, double> SparrowModel::class_posterior_given_age(
 
 std::string SparrowModel::sample_class(Rng& rng) const {
   if (class_names.empty()) return "unknown";
+  // A fresh spawn is drawn from the SPAWN mixture, not the occupancy mixture.
+  const auto& w = spawn_class_probs.size() == class_names.size()
+                      ? spawn_class_probs
+                      : class_probs;
   const double u = rng.uniform();
   double acc = 0.0;
   for (size_t i = 0; i < class_names.size(); ++i) {
-    acc += class_probs[i];
+    acc += w[i];
     if (u < acc) return class_names[i];
   }
   return class_names.back();
@@ -244,14 +248,50 @@ const std::vector<SVertex>& GraphContext::corridor(SVertex vertex,
 ObstacleProcess::ObstacleProcess(const std::vector<SEdge>* edges,
                                  double spawn_rate_hz,
                                  const SparrowModel* model, Rng rng, double t0,
-                                 bool no_adjacent_blocking)
+                                 bool no_adjacent_blocking,
+                                 const std::vector<double>* spawn_weights)
     : edges_(edges),
       spawn_rate_hz_(spawn_rate_hz),
       model_(model),
       no_adjacent_blocking_(no_adjacent_blocking),
       rng_(rng),
       t_(t0) {
+  // Cumulative weights for the edge draw. The TOTAL rate is spawn_rate_hz
+  // unchanged, and the weights only decide which edge each spawn lands on:
+  // that is calendar.AbsoluteTimeObstacleProcess's convention (its global
+  // clock runs at spawn_rate_hz and _per_edge_rates splits it as
+  // spawn_rate_hz * w_e / sum(w)), and spawn_rate_hz is already the whole
+  // graph's rate because Little's law is applied with the MICRO edge count.
+  //
+  // Only the selection was ever wrong here: it drew edges uniformly, so an
+  // 80-micro-edge corridor was as likely to receive a spawn as a 1-edge one.
+  //
+  // Note for both implementations: sum(w) is a few percent below the micro
+  // edge count (the weights are 1-(1-p)^n over p, which is concave in n), so
+  // normalising Little's law by the micro count rather than by sum(w) puts
+  // the imagined steady state ~4% above the target occupancy. That is the
+  // simulator's convention and the paper's numbers carry it, so it is
+  // reproduced here rather than corrected on one side only.
+  if (edges_ != nullptr && spawn_weights != nullptr &&
+      spawn_weights->size() == edges_->size()) {
+    double acc = 0.0;
+    cumweights_.reserve(spawn_weights->size());
+    for (double w : *spawn_weights) {
+      acc += std::max(0.0, w);
+      cumweights_.push_back(acc);
+    }
+    if (acc <= 0.0) cumweights_.clear();
+  }
   next_spawn_time_ = draw_next_spawn(t_);
+}
+
+size_t ObstacleProcess::draw_edge_index() {
+  if (cumweights_.empty()) return rng_.integer(edges_->size());
+  const double u = rng_.uniform() * cumweights_.back();
+  const auto it =
+      std::upper_bound(cumweights_.begin(), cumweights_.end(), u);
+  const size_t i = static_cast<size_t>(it - cumweights_.begin());
+  return std::min(i, cumweights_.size() - 1);
 }
 
 const ActiveObs* ObstacleProcess::obstacle_on(const SEdge& e) const {
@@ -300,7 +340,7 @@ void ObstacleProcess::process_clearance() {
 
 void ObstacleProcess::process_spawn(double t_spawn) {
   if (edges_ == nullptr || edges_->empty() || model_ == nullptr) return;
-  const SEdge edge = (*edges_)[rng_.integer(edges_->size())];
+  const SEdge edge = (*edges_)[draw_edge_index()];
   if (active_.count(edge)) return;  // busy: drop spawn, keep Poisson clock
   if (no_adjacent_blocking_) {
     for (const auto& kv : active_) {
@@ -520,11 +560,24 @@ StepResult TransitionModel::step(const PlannerState& s,
     const double t0 = nxt.time();
     SVertex current = u;
     for (const auto& hop : chain) {
-      // On-entry block check. In the Python sim the first edge is always
-      // observed-free (Traverse is never offered onto a known-blocked edge);
-      // on the robot a root Traverse may target an edge whose status was
-      // UNKNOWN (out of sensor range), so the check applies to every hop.
-      if (nxt.is_blocked(canonical_edge(current, hop))) break;
+      // On-entry block check for edges BEYOND THE FIRST only, which is the
+      // rule generator._apply_traverse uses (its `if current != u:` guard).
+      //
+      // The first edge is deliberately exempt. The robot chose to move onto
+      // it knowing its status, so re-testing it inside the transition tests
+      // the PARTICLE's belief instead of the robot's observation - and at the
+      // root the two disagree by construction, because the root action set
+      // comes from what the robot saw while the particles hold the whole
+      // distribution. Checking it made a root Traverse a no-op costing kEps
+      // in every particle that believed the corridor blocked: the robot did
+      // not move, the subtree continued from the same vertex, and the action
+      // came back systematically dearer than the simulator priced it (+25% on
+      // sep12_4, and never the other way).
+      //
+      // Edges 2..N are different: they are out of sight from the starting
+      // vertex, so stopping at one is genuine new information, not a
+      // re-reading of something already known.
+      if (current != u && nxt.is_blocked(canonical_edge(current, hop))) break;
       const double leg = ctx_->edge_time(current, hop);
       nxt.process.advance_to(nxt.time() + leg);
       current = hop;
@@ -567,6 +620,7 @@ StepResult TransitionModel::step(const PlannerState& s,
 void ParticleBelief::setEdgeWeights(const std::map<SEdge, double>& raw) {
   edge_p_.clear();
   edge_weight_.clear();
+  spawn_weights_.clear();
   if (raw.empty()) return;
 
   double total = 0.0;
@@ -581,6 +635,30 @@ void ParticleBelief::setEdgeWeights(const std::map<SEdge, double>& raw) {
     // Relative spawn preference only: mean-normalised.
     edge_weight_[kv.first] = kv.second * static_cast<double>(n) / total;
   }
+
+  rebuildSpawnWeights();
+}
+
+void ParticleBelief::setEdgeOrder(const std::vector<SEdge>& order) {
+  edge_order_ = order;
+  rebuildSpawnWeights();
+}
+
+void ParticleBelief::rebuildSpawnWeights() {
+  spawn_weights_.clear();
+  if (ctx_ == nullptr || edge_p_.empty()) return;
+  const auto& edges = drawOrder();
+  spawn_weights_.reserve(edges.size());
+  for (const auto& e : edges) {
+    auto it = edge_p_.find(e);
+    spawn_weights_.push_back(it == edge_p_.end() ? 1.0 : it->second);
+  }
+}
+
+const std::vector<double>* ParticleBelief::spawnWeightsForEdges() const {
+  if (ctx_ == nullptr || spawn_weights_.size() != drawOrder().size())
+    return nullptr;
+  return &spawn_weights_;
 }
 
 double ParticleBelief::p_edge(const SEdge& edge) const {
@@ -612,13 +690,23 @@ void ParticleBelief::initialize(const LocalObservation& local) {
 }
 
 PlannerState ParticleBelief::new_particle(const LocalObservation& local) {
-  Rng rng(derive_seed(seed_, ++stream_counter_));
-  ObstacleProcess process(&ctx_->edges, model_->spawn_rate_hz, model_,
-                          Rng(derive_seed(seed_, 0x100000 + stream_counter_)),
-                          local.time, no_adj_);
+  // ONE stream, shared with the obstacle process, because that is what
+  // belief.py does: it builds a single FastRNG and hands the SAME object to
+  // AbsoluteTimeObstacleProcess, whose constructor immediately draws the first
+  // spawn time from it before the per-edge loop below draws anything. Giving
+  // the process its own stream here left the per-edge loop one draw ahead of
+  // the simulator's for every particle, so two implementations that agree in
+  // every other respect still produced different particle sets.
+  //
+  // The belief's per-edge weights are also the spawn weights: both express
+  // "this corridor is n micro-edges long" (see setEdgeWeights).
+  ObstacleProcess process(&drawOrder(), model_->spawn_rate_hz, model_,
+                          Rng(derive_seed(seed_, ++stream_counter_)),
+                          local.time, no_adj_, spawnWeightsForEdges());
+  Rng& rng = process.rng();
 
   // Unobserved edges: memory-conditioned or steady-state Bernoulli(p_block).
-  for (const auto& edge : ctx_->edges) {
+  for (const auto& edge : drawOrder()) {
     if (local.statuses.count(edge)) continue;  // observed: handled below
     auto mit = local.memory.find(edge);
     if (mit != local.memory.end()) {
@@ -640,10 +728,11 @@ PlannerState ParticleBelief::new_particle(const LocalObservation& local) {
   state.robot_vertex = local.vertex;
   state.process = std::move(process);
 
-  // Observed statuses are enforced.
+  // Observed statuses are enforced. The shared stream moved with the process,
+  // so keep drawing from it rather than from the now-dangling reference.
   for (const auto& kv : local.statuses) {
     if (kv.second == 1) {
-      install_tracked_blockage(state, local, kv.first, rng);
+      install_tracked_blockage(state, local, kv.first, state.process.rng());
     } else {
       state.process.remove_obstacle(kv.first);
     }

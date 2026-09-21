@@ -197,6 +197,63 @@ class SparrowStrategy : public WaitStrategy {
   /** \brief Edges currently remembered as blocked (diagnostics). */
   std::vector<std::pair<uint64_t, uint64_t>> rememberedBlockedEdges() const;
 
+  /**
+   * \brief One root action of the most recent plan, with the statistics the
+   *        search produced for it. Kept so the decision can be compared
+   *        against the Python simulator's on an identical scenario: the
+   *        chosen action alone hides whether the two agreed on the RANKING
+   *        or merely tied, and the handoff only ever promised ordering
+   *        parity (the RNG differs, so Q-values cannot match to the digit).
+   */
+  struct RootActionRecord {
+    int kind = 0;  ///< 0 = TRAVERSE, 1 = MAXWAIT, 2 = OBSERVE
+    sparrow::SEdge edge{0, 0};
+    uint64_t first_hop = 0;
+    double W = 0.0;
+    int visits = 0;
+    double q_cost = 0.0;
+  };
+
+  /**
+   * \brief The frozen model a plan would run against, for the parity harness.
+   *
+   * The occupancy the search uses is not obstacleStats()->p_block(): it is
+   * that, or the Jeffreys estimate, or the config override, depending on how
+   * the deployment is configured. Comparing priors across the two
+   * implementations has to read the number the search actually sees.
+   */
+  sparrow::SparrowModel frozenModel(int num_edges) const {
+    return snapshotModel(num_edges);
+  }
+
+  /** \brief Root action statistics of the most recent plan, best first. */
+  std::vector<RootActionRecord> lastRootActions() const;
+
+  /** \brief Vertex the most recent plan was rooted at (0 = never planned). */
+  uint64_t lastPlanningVertex() const;
+
+  /**
+   * \brief Install a blocked sighting directly, as if the detector had been
+   *        watching edge `e` from `t_first` through `t_last`.
+   *
+   * The parity harness needs to place an obstacle of a known class on a
+   * chosen taught edge at a chosen age without replaying a costmap. The
+   * belief then ages it exactly as it would a real sighting.
+   */
+  void seedBlockedSighting(const sparrow::SEdge& e, const std::string& label,
+                           double t_first, double t_last);
+
+  /**
+   * \brief Forget that this encounter has already paid for an Observe.
+   *
+   * computeWaitTime clears the per-encounter Observe budget only when it is
+   * told the obstacle is brand new (obstacle_t_first <= 0). A caller that
+   * drives the strategy through a series of unrelated situations - the parity
+   * harness - must say where one encounter ends, or single_observe_per_encounter
+   * silently removes Observe from every situation after the first.
+   */
+  void resetEncounter();
+
   /** \brief Persist survival model + obstacle stats. */
   void saveData();
 
@@ -267,6 +324,9 @@ class SparrowStrategy : public WaitStrategy {
     std::string label;             // VLM label if known (current streak)
   };
   std::map<sparrow::SEdge, MemEntry> memory_;
+  // Root action statistics of the last plan (see lastRootActions()).
+  std::vector<RootActionRecord> last_root_actions_;
+  uint64_t last_planning_vertex_ = 0;
   // Archived pre-gap sightings: when an edge is re-sighted blocked after
   // leaving view, the old streak's record lands here so every belief
   // (re)initialization during the new streak runs the same-obstacle-vs-new-

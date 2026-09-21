@@ -316,24 +316,68 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
     // route_planning.obstacle_strategy.type_weights.<class> overrides, so a
     // deployment can be handed the same class prior the simulation samples
     // from. Weights need not sum to 1 - they are normalized downstream.
-    wait_strategy_config_.type_weights["person"] = 0.6;
-    wait_strategy_config_.type_weights["chair"] = 0.15;
-    wait_strategy_config_.type_weights["bin"] = 0.15;
-    wait_strategy_config_.type_weights["sonotube"] = 0.1;
-    for (const auto& type : std::vector<std::string>{"person", "chair", "bin",
-                                                     "sonotube"}) {
+    //
+    // The class UNIVERSE is the key set of type_weights, and it matters as
+    // much as the values: GlobalObstacleStats::getTypeDistribution smooths the
+    // observed counts with a Dirichlet(1) prior over that key set, so a class
+    // listed with weight 0.0 is not switched off - it still receives its
+    // pseudo-count and, at a cold start, 1/n of the prior mass. Listing four
+    // classes therefore gives 25% each no matter what the weights say, and the
+    // four-class posterior is exactly what never lets the class gate open
+    // (vtr_obstacle_simulation/scripts/scratch_ablations.py:1391). To run the
+    // paper's two-class real-world setting, name the two:
+    //   route_planning.obstacle_strategy.classes: ["person", "chair"]
+    std::vector<std::string> classes;
+    try {
+      classes = node_->declare_parameter<std::vector<std::string>>(
+          "route_planning.obstacle_strategy.classes",
+          std::vector<std::string>{"person", "chair", "bin", "sonotube"});
+    } catch (...) {
+      classes = {"person", "chair", "bin", "sonotube"};
+    }
+    wait_strategy_config_.class_order = classes;
+    const std::map<std::string, double> default_weights{
+        {"person", 0.6}, {"chair", 0.15}, {"bin", 0.15}, {"sonotube", 0.1}};
+    for (const auto& type : classes) {
+      auto dit = default_weights.find(type);
+      wait_strategy_config_.type_weights[type] =
+          (dit != default_weights.end()) ? dit->second : 1.0;
       try {
         const double w = node_->declare_parameter<double>(
             "route_planning.obstacle_strategy.type_weights." + type, -1.0);
         if (w >= 0.0) wait_strategy_config_.type_weights[type] = w;
       } catch (...) {
       }
+      // Spawn prior (see WaitStrategyConfig::spawn_type_weights). Only set it
+      // when the true clearance laws are handed over; left unset the search
+      // spawns from the encounter share, which is the learned behaviour.
+      try {
+        const double w = node_->declare_parameter<double>(
+            "route_planning.obstacle_strategy.spawn_type_weights." + type,
+            -1.0);
+        if (w >= 0.0) wait_strategy_config_.spawn_type_weights[type] = w;
+      } catch (...) {
+      }
+    }
+    try {
+      wait_strategy_config_.spawn_mean_duration_s =
+          node_->declare_parameter<double>(
+              "route_planning.obstacle_strategy.spawn_mean_duration_s", -1.0);
+    } catch (...) {
     }
     {
       std::stringstream ss;
       for (const auto& kv : wait_strategy_config_.type_weights)
         ss << kv.first << "=" << kv.second << " ";
-      CLOG(INFO, "navigation") << "HSHMAT: Obstacle class prior: " << ss.str();
+      CLOG(INFO, "navigation") << "HSHMAT: Obstacle class prior (encounter): "
+                               << ss.str();
+      if (!wait_strategy_config_.spawn_type_weights.empty()) {
+        std::stringstream s2;
+        for (const auto& kv : wait_strategy_config_.spawn_type_weights)
+          s2 << kv.first << "=" << kv.second << " ";
+        CLOG(INFO, "navigation") << "HSHMAT: Obstacle class prior (spawn): "
+                                 << s2.str();
+      }
     }
     
     // Load seed samples for survival model initialization
