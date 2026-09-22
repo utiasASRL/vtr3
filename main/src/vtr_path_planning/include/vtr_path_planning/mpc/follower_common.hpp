@@ -23,6 +23,7 @@
 #include <nav_msgs/msg/path.hpp>
 #include <vtr_common/conversions/ros_lgmath.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/pose_array.hpp>
 
 #include "mpc_common.hpp"
 
@@ -37,6 +38,8 @@ public:
 
 
   PathInterpolator(const nav_msgs::msg::Path::SharedPtr& path);
+
+  PathInterpolator(const geometry_msgs::msg::PoseArray::SharedPtr& refs, const double dt);
 
   Transformation at(tactic::Timestamp time) const;
   tactic::Timestamp start() const;
