@@ -30,7 +30,6 @@ namespace vtr::path_planning {
 void BicycleMPCPathTrackerFollower::Config::loadConfig(BicycleMPCPathTrackerFollower::Config::Ptr config, 
 		           const rclcpp::Node::SharedPtr& node,
                            const std::string& prefix) {
-
   // MPC Configs:
   // Follower params
   config->leader_namespace = node->declare_parameter<std::string>(prefix + ".leader_namespace", config->leader_namespace);
