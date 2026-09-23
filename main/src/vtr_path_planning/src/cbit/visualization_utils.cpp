@@ -26,6 +26,7 @@ namespace path_planning {
 VisualizationUtils::VisualizationUtils(rclcpp::Node::SharedPtr node) {
     tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
     mpc_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("mpc_prediction", rclcpp::QoS(1).best_effort().durability_volatile());
+    ts_ref_pose_pub_ = node->create_publisher<nav_msgs::msg::Path>("stamped_reference_poses", rclcpp::QoS(1).best_effort().durability_volatile());
     leader_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("leader_mpc_prediction", 10);
     robot_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("robot_path", 10);
     path_pub_ = node->create_publisher<nav_msgs::msg::Path>("planning_path", 10);
@@ -282,6 +283,22 @@ void VisualizationUtils::visualize(
         ref_pose_pub_->publish(pose_array_msg);
     }
 
+    void VisualizationUtils::publishStampedReferencePoses(const std::vector<std::pair<tactic::Timestamp, lgmath::se3::Transformation>>& stamped_ref_poses) {
+        nav_msgs::msg::Path ref_path;
+        ref_path.header.frame_id = "world";
+        ref_path.header.stamp = rclcpp::Time(stamped_ref_poses[0].first);
+        auto& poses = ref_path.poses;
+
+        // intermediate states
+        for (unsigned i = 0; i < stamped_ref_poses.size(); ++i) {
+            auto& pose = poses.emplace_back();
+            pose.pose = tf2::toMsg(Eigen::Affine3d(stamped_ref_poses[i].second.matrix()));
+            pose.header.stamp = rclcpp::Time(stamped_ref_poses[i].first);
+            pose.header.frame_id = "world";
+        }
+        ts_ref_pose_pub_->publish(ref_path);
+    }
+
     // Attempting to Publish the reference poses used in the mpc optimization as a pose array
     void VisualizationUtils::publishLocalReferencePoses(const std::vector<lgmath::se3::Transformation>& ref_poses, const tactic::Timestamp& stamp) {
 
@@ -329,6 +346,7 @@ void VisualizationUtils::visualize(
         }
         mpc_path_pub_->publish(mpc_path);
     }
+
 
     void VisualizationUtils::publishLeaderRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt) {
         nav_msgs::msg::Path mpc_path;

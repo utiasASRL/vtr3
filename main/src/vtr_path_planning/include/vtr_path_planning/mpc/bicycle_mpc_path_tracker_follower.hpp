@@ -44,7 +44,6 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
 
   using PathMsg = nav_msgs::msg::Path;
   using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
-  using RefPoseMsg = geometry_msgs::msg::PoseArray;
   using RouteMsg = vtr_navigation_msgs::msg::GraphRoute;
   using FollowingRouteSrv = vtr_navigation_msgs::srv::FollowingRoute;
   using Transformation = lgmath::se3::Transformation;
@@ -127,9 +126,9 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   PathInterpolator::ConstPtr leaderPathInterp_; 
   PoseStampedMsg lastRobotPose_;
 
-  RefPoseMsg::SharedPtr recentLeaderRefs_;
-  rclcpp::Subscription<RefPoseMsg>::SharedPtr leaderRefSub_;
-  void onLeaderReferences(const RefPoseMsg::SharedPtr ref);
+  PathMsg::SharedPtr recentLeaderRefs_;
+  rclcpp::Subscription<PathMsg>::SharedPtr leaderRefSub_;
+  void onLeaderReferences(const PathMsg::SharedPtr ref);
   std::vector<Transformation> leaderReference_;
   PathInterpolator::ConstPtr leaderReferenceInterp_; 
 

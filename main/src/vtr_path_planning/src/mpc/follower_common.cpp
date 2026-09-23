@@ -31,19 +31,6 @@ PathInterpolator::PathInterpolator(const nav_msgs::msg::Path::SharedPtr& path) {
   }
 }
 
-PathInterpolator::PathInterpolator(const geometry_msgs::msg::PoseArray::SharedPtr& refs, const double dt) {
-  using namespace vtr::common::conversions;
-  if (refs->poses.size() == 0)
-    throw std::range_error("Path length cannot be 0 for interpolation!");
-
-  // First MPC pred is x0 I think - monitor this when deciding if this should be 1 or zero
-  int i = 1;
-  for(const auto& pose : refs->poses) {
-    path_info_[(rclcpp::Time(refs->header.stamp) + rclcpp::Duration::from_seconds(i * dt)).nanoseconds()] = tfFromPoseMessage(pose);
-    ++i;
-  }
-}
-
 PathInterpolator::Transformation PathInterpolator::at(tactic::Timestamp time) const {
   CLOG(DEBUG, "mpc.follower") << "Requested interpolation time " << time;
 

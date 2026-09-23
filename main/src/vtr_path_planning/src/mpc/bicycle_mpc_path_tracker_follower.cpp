@@ -75,7 +75,7 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   using std::placeholders::_1;
   const auto leader_path_topic = config_->leader_namespace + "/vtr/mpc_prediction";
   const auto leader_graph_topic = config_->leader_namespace + "/vtr/graph_state_srv";
-  const auto leader_ref_topic = config->leader_namespace + "/vtr/mpc_ref_pose_array";
+  const auto leader_ref_topic = config->leader_namespace + "/vtr/stamped_reference_poses";
   const auto leader_route_topic = config_->leader_namespace + "/vtr/following_route";
   const auto leader_route_service = config_->leader_namespace + "/vtr/following_route_srv";
   
@@ -88,7 +88,7 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
 
 
   if (config->waypoint_source == "leader_ref"){
-    leaderRefSub_ = robot_state->node->create_subscription<RefPoseMsg>(leader_ref_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderReferences, this, _1));
+    leaderRefSub_ = robot_state->node->create_subscription<PathMsg>(leader_ref_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderReferences, this, _1));
     CLOG(INFO, "mpc.follower") << "Listening for reference poses on " <<leader_ref_topic;
   }
   else if (config->waypoint_source == "leader_pred"){
@@ -276,7 +276,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
 
   }
   vis_->publishReferencePoses(referenceInfo.poses, curr_time);
-  leader_world_poses.insert(leader_world_poses.begin(), T_w_l );
+  leader_world_poses.insert(leader_world_poses.begin(), T_w_l);
   vis_->publishLeaderRollout(leader_world_poses, curr_time, mpcConfig->DT);
 
   mpcConfig->eop_index = end_ind;
@@ -326,29 +326,27 @@ void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) 
   leaderPathInterp_ = std::make_shared<const PathInterpolator>(path);
 }
 
-void BicycleMPCPathTrackerFollower::onLeaderReferences(const RefPoseMsg::SharedPtr ref) {
+void BicycleMPCPathTrackerFollower::onLeaderReferences(const PathMsg::SharedPtr ref) {
   using namespace vtr::common::conversions;
   
   recentLeaderRefs_ = ref;
 
-  // Implicict assumpton - DT matche between robots
-  const auto dt = config_->control_period; 
   //reconstruct velocity
   if (ref->poses.size() > 1) {
-    const Transformation T_w_p0 = tfFromPoseMessage(ref->poses[0]);
-    const Transformation T_w_p1 =  tfFromPoseMessage(ref->poses[1]);
-    
-    auto vel = (T_w_p0.inverse() * T_w_p1).vec() / dt;
+    const Transformation T_w_p0 = tfFromPoseMessage(ref->poses[0].pose);
+    const Transformation T_w_p1 =  tfFromPoseMessage(ref->poses[1].pose);
+    const auto dt = rclcpp::Time(ref->poses[1].header.stamp) - rclcpp::Time(ref->poses[0].header.stamp);
+    auto vel = (T_w_p0.inverse() * T_w_p1).vec() / dt.seconds();
     if (vel(0, 0) > 1.0) {
-      CLOG(WARNING, "mpc.follower") << "Erroneous velocity " << vel << " capped to nominal forward speed. DT=" << dt;
+      CLOG(WARNING, "mpc.follower") << "Erroneous velocity " << vel << " capped to nominal forward speed. DT=" << dt.seconds();
       leader_vel_ << config_->forward_vel, 0.0;
     } else {
       leader_vel_ << vel(0, 0), vel(5, 0);
     }
-    CLOG(DEBUG, "mpc.follower") << "Estimated commanded leader velo: " << leader_vel_;
+    CLOG(DEBUG, "mpc.follower") << "Estimated leader velo: " << leader_vel_;
   } 
 
-  leaderPathInterp_ = std::make_shared<const PathInterpolator>(ref, dt);
+  leaderPathInterp_ = std::make_shared<const PathInterpolator>(ref);
 }
 
 void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture future){

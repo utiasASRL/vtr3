@@ -226,7 +226,16 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
     return Command();
   }
 
+  std::vector<std::pair<tactic::Timestamp, lgmath::se3::Transformation>> mpc_references;
+  mpc_references.push_back(std::make_pair(curr_time, T_w_p*T_p_r));
+
+  for (int i = 0; i < mpcConfig->reference_poses.size(); i++) {
+    const auto& pose_i = mpcConfig->reference_poses[i].get_elements(); 
+    CLOG(DEBUG, "cbit.control") << "Rolled out reference poses " << pose_i;
+    mpc_references.push_back(std::make_pair(curr_time + (i+1)*mpcConfig->DT*1e9, T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2])));
+  }
   vis_->publishMPCRollout(mpc_poses);
+  vis_->publishStampedReferencePoses(mpc_references);
 
   CLOG(INFO, "cbit.control") << "The linear velocity is:  " << command.linear.x
                              << " The angular vel is: " << command.angular.z;
@@ -285,9 +294,6 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
     mpcConfig->cost_weights.push_back(weighting);
     last_pose = curr_pose;
   }
-
-  vis_->publishReferencePoses(referenceInfo.poses, curr_time);
-  vis_->publishLocalReferencePoses(local_reference_poses, curr_time);
 
   if (end_ind == 0)
     end_ind = 1;
