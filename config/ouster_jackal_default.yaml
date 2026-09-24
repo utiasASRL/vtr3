@@ -59,7 +59,7 @@
       # =========================
       # Robot model
       # =========================
-      nominal_speed_mps: 0.95        # robot nominal forward speed (m/s)
+      nominal_speed_mps: 0.5         # robot nominal forward speed (m/s)
 
       # grid-based screening of edges when building obstacle delays (0 = disabled)
       screening_lookahead_m: 0.0
@@ -72,7 +72,7 @@
       # Controls how long to wait vs when to reroute
       obstacle_strategy:
         # Strategy type: always_wait | always_detour | rule_based | greedy_ctp | learned
-        type: "learned"
+        type: "rule_based"
         
         # Maximum wait time (seconds) - used as upper bound for learned, and timeout for others
         # unknown_W_max is the fallback for any obstacle type not listed in W_max_per_type
@@ -432,7 +432,7 @@
         planar_curv_weight: 2.50
         profile_curv_weight: 0.5 
         eop_weight: 1.0
-        min_vel: 0.95 #0.5
+        min_vel: 0.5
 
       mpc:
         # Controller Params
@@ -441,9 +441,9 @@
         homotopy_guided_mpc: false
         horizon_steps: 20
         horizon_step_size: 0.25 # JH: I think this is planning time step which I need to be 0.25s for DRL model.
-        forward_vel: 0.95 #hsh, used to be0.9
-        max_lin_vel: 0.95 # hsh, used to be 1.0 #1.0
-        max_ang_vel: 0.95 # hsh, used to be 1.0 #1.0
+        forward_vel: 0.5 #hsh, used to be0.9
+        max_lin_vel: 0.5 # hsh, used to be 1.0 #1.0
+        max_ang_vel: 0.3 # hsh, used to be 1.0 #1.0
         robot_linear_velocity_scale: 1.0 # Used to scale the output twist linear velocity messages by some constant factor to compensate internal low level control miscalibration
         robot_angular_velocity_scale: 1.0 # Used to scale the output twist angular velocity messages by some constant factor to compensate internal low level control miscalibration
 

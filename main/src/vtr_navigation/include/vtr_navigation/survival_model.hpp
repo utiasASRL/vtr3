@@ -78,7 +78,12 @@ class SurvivalModel {
    * \param duration Duration in seconds
    * \param censored true if rerouted before clear, false if observed clear
    */
-  void addSample(const std::string& obs_type, double duration, bool censored);
+  // `episode` is accepted for call-site compatibility and ignored: this
+  // branch's Sample carries only (duration, censored), so there is nowhere to
+  // store it. Callers on the SPARROW branch pass it to group samples by
+  // episode for the KM update; here they are all one pool.
+  void addSample(const std::string& obs_type, double duration, bool censored,
+                 int episode = 0);
   
   /**
    * \brief Add seed samples for initialization (uncensored).

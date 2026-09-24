@@ -127,7 +127,8 @@ bool SurvivalModel::saveToFile(const std::string& path) const {
   }
 }
 
-void SurvivalModel::addSample(const std::string& obs_type, double duration, bool censored) {
+void SurvivalModel::addSample(const std::string& obs_type, double duration,
+                              bool censored, int /*episode*/) {
   std::lock_guard<std::mutex> lock(mutex_);
   
   samples_[obs_type].emplace_back(duration, censored);
