@@ -118,7 +118,7 @@ void BicycleMPCPathTracker::loadMPCConfig(
   mpc_config->Acc_R1 = isReversing ? config_->r_racc1 : config_->f_racc1;
   mpc_config->Acc_R2 = isReversing ? config_->r_racc2 : config_->f_racc2; 
 
-  if (failure_count >= config_->failure_threshold) {
+  if (config_->failure_threshold > 0 && failure_count >= config_->failure_threshold) {
     CLOG(WARNING, "cbit.control") << "Failure count exceeded threshold. Enabling recovery mode.";
     mpc_config->recovery = true;
     // If we're recovering, the only thing that matters is getting back to the path
@@ -143,19 +143,6 @@ bool BicycleMPCPathTracker::isMPCStateValid(CasadiMPC::Config::Ptr, const tactic
   return true;
 }
 
-void BicycleMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
-                         const lgmath::se3::Transformation& T_p_r_extp,
-                         const double state_p,
-                         RobotState& robot_state,
-                         const tactic::Timestamp& t) {
-  auto mpc_config = std::static_pointer_cast<CasadiBicycleMPC::Config>(mpcConfig);
-  BaseMPCPathTracker::loadMPCPath(mpcConfig, T_w_p, T_p_r_extp, state_p, robot_state, t);
-
-  //Temporary to maintain functionality. TODO remove
-  mpcConfig->up_barrier_q.clear();
-  mpcConfig->low_barrier_q.clear();
-}
-
 std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::Config::Ptr config) {
   std::map<std::string, casadi::DM> result;
 
@@ -176,7 +163,7 @@ std::map<std::string, casadi::DM> BicycleMPCPathTracker::callSolver(CasadiMPC::C
       failure_count += 1;
       // Only reset success count if we are not actively trying to recover
       // If we are failing consistently when recovering, we should just keep trying.
-      if (failure_count < config_->failure_threshold){
+      if (config_->failure_threshold > 0 && failure_count < config_->failure_threshold){
           success_count = 0;
       }
       throw e;

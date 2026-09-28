@@ -37,8 +37,7 @@
           max_lin_acc: 0.5
           vehicle_model: "bicycle"
           wheelbase: 0.65
-          recovery_steps: 15
-          failure_threshold: 5
+          failure_threshold: -1
 
           # Tunable controller parameters
           forward:
