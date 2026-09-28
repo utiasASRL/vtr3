@@ -227,7 +227,8 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   }
 
   std::vector<std::pair<tactic::Timestamp, lgmath::se3::Transformation>> mpc_references;
-  mpc_references.push_back(std::make_pair(curr_time, T_w_p*T_p_r));
+  mpc_references.push_back(std::make_pair(stamp, T_w_p*T_p_r));
+  mpc_references.push_back(std::make_pair(curr_time, T_w_p*T_p_r_extp));
 
   for (int i = 0; i < mpcConfig->reference_poses.size(); i++) {
     const auto& pose_i = mpcConfig->reference_poses[i].get_elements(); 
@@ -247,7 +248,7 @@ void BaseMPCPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgm
                          const lgmath::se3::Transformation& T_p_r_extp,
                          const double state_p,
                          RobotState& robot_state,
-                         const tactic::Timestamp& curr_time) {
+                         const tactic::Timestamp&) {
 
   auto& chain = robot_state.chain.ptr();
   std::vector<double> p_rollout;
