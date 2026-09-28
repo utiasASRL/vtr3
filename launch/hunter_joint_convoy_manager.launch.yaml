@@ -33,7 +33,8 @@ windows:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
       - >
-        ros2 bag record /mr_green/cmd_vel /prof_plum/cmd_vel \
+        ros2 bag record /tf /tf_static \
+          /mr_green/cmd_vel /prof_plum/cmd_vel \
           /mr_green/vtr/mpc_prediction /prof_plum/vtr/mpc_prediction \
           /mr_green/vtr/odometry /prof_plum/vtr/odometry \
           /mr_green/vtr/leader_mpc_prediction /prof_plum/vtr/leader_mpc_prediction \
