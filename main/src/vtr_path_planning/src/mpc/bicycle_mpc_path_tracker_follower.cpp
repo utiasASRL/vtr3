@@ -88,8 +88,8 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
 
 
   if (config->waypoint_source == "leader_ref"){
-    leaderRefSub_ = robot_state->node->create_subscription<PathMsg>(leader_ref_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderReferences, this, _1));
-    CLOG(INFO, "mpc.follower") << "Listening for reference poses on " <<leader_ref_topic;
+    leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_ref_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
+    CLOG(INFO, "mpc.follower") << "Listening for reference poses on " << leader_ref_topic;
   }
   else if (config->waypoint_source == "leader_pred"){
     leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
@@ -147,11 +147,7 @@ bool BicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, cons
     return false;
   }
 
-  auto leader_path_time = rclcpp::Time(0.0).nanoseconds();
-  if (config_->waypoint_source == "leader_pred")
-    leader_path_time = rclcpp::Time(recentLeaderPath_->header.stamp).nanoseconds();
-  else if (config_->waypoint_source == "leader_ref")
-    leader_path_time = rclcpp::Time(recentLeaderRefs_->header.stamp).nanoseconds();
+  auto leader_path_time = rclcpp::Time(recentLeaderPath_->header.stamp).nanoseconds();
   
   const auto delta_t = curr_time - leader_path_time;
   if (delta_t > 1e9) {
@@ -324,29 +320,6 @@ void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) 
   } 
 
   leaderPathInterp_ = std::make_shared<const PathInterpolator>(path);
-}
-
-void BicycleMPCPathTrackerFollower::onLeaderReferences(const PathMsg::SharedPtr ref) {
-  using namespace vtr::common::conversions;
-  
-  recentLeaderRefs_ = ref;
-
-  //reconstruct velocity
-  if (ref->poses.size() > 1) {
-    const Transformation T_w_p0 = tfFromPoseMessage(ref->poses[0].pose);
-    const Transformation T_w_p1 =  tfFromPoseMessage(ref->poses[1].pose);
-    const auto dt = rclcpp::Time(ref->poses[1].header.stamp) - rclcpp::Time(ref->poses[0].header.stamp);
-    auto vel = (T_w_p0.inverse() * T_w_p1).vec() / dt.seconds();
-    if (vel(0, 0) > 1.0) {
-      CLOG(WARNING, "mpc.follower") << "Erroneous velocity " << vel << " capped to nominal forward speed. DT=" << dt.seconds();
-      leader_vel_ << config_->forward_vel, 0.0;
-    } else {
-      leader_vel_ << vel(0, 0), vel(5, 0);
-    }
-    CLOG(DEBUG, "mpc.follower") << "Estimated leader velo: " << leader_vel_;
-  } 
-
-  leaderPathInterp_ = std::make_shared<const PathInterpolator>(ref);
 }
 
 void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture future){
