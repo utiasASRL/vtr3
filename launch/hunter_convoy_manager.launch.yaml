@@ -33,10 +33,10 @@ windows:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
       - >
-        ros2 bag record /mr_green/cmd_vel /prof_plum/cmd_vel
-          /mr_green/vtr/mpc_prediction /prof_plum/vtr/mpc_prediction 
-          /mr_green/vtr/odometry /prof_plum/vtr/odometry
-          /mr_green/vtr/leader_mpc_prediction /prof_plum/vtr/leader_mpc_prediction
-          /mr_green/vtr/mpc_ref_pose_array /prof_plum/vtr/mpc_ref_pose_array
-          /mr_green/vtr/leader_distance /prof_plum/vtr/leader_distance
+        ros2 bag record /mr_green/cmd_vel /prof_plum/cmd_vel \
+          /mr_green/vtr/mpc_prediction /prof_plum/vtr/mpc_prediction \
+          /mr_green/vtr/odometry /prof_plum/vtr/odometry \
+          /mr_green/vtr/leader_mpc_prediction /prof_plum/vtr/leader_mpc_prediction \
+          /mr_green/vtr/stamped_reference_poses /prof_plum/vtr/stamped_reference_poses \
+          /mr_green/vtr/leader_distance /prof_plum/vtr/leader_distance \
           /mr_green/vtr/estimated_leader_distance /prof_plum/vtr/estimated_leader_distance
