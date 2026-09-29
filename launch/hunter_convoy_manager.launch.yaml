@@ -16,7 +16,6 @@ windows:
       - ros2 run vtr_gui multi_robot_socket_client --ros-args -r __ns:=/vtr -p robots:=$ROBOTS
       - ros2 run vtr_gui multi_robot_socket_server --ros-args -r __ns:=/vtr -p robots:=$ROBOTS
       - ros2 run vtr_gui multi_robot_web_server --ros-args -r __ns:=/vtr -p robots:=$ROBOTS
-      - ros2 run vtr_gui setup_server --ros-args -r __ns:=/vtr --robots $ROBOTS
 
   - window_name: convoy_manager
     layout: main-horizontal
@@ -31,13 +30,7 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
+      - ros2 run vtr_gui setup_server --ros-args -r __ns:=/vtr --robots $ROBOTS
     panes:
-      - >
-        ros2 bag record /tf /tf_static \
-          /mr_green/cmd_vel /prof_plum/cmd_vel \
-          /mr_green/vtr/mpc_prediction /prof_plum/vtr/mpc_prediction \
-          /mr_green/vtr/odometry /prof_plum/vtr/odometry \
-          /mr_green/vtr/leader_mpc_prediction /prof_plum/vtr/leader_mpc_prediction \
-          /mr_green/vtr/stamped_reference_poses /prof_plum/vtr/stamped_reference_poses \
-          /mr_green/vtr/leader_distance /prof_plum/vtr/leader_distance \
-          /mr_green/vtr/estimated_leader_distance /prof_plum/vtr/estimated_leader_distance
+      - ros2 run vtr_multi_robot record_convoy_bag.py ${VTRTEMP}/setup_params.yaml --namespaces $ROBOTS --configs $VTRSRC/config/hunter_convoy_params.yaml
+
