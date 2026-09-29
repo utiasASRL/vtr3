@@ -119,7 +119,7 @@ class BicycleMPCJointPathTracker : public BicycleMPCPathTracker {
   Eigen::Vector2d follower_vel_;
   tactic::Timestamp follower_stamp_;
 
-
+  rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;
   rclcpp::Publisher<Command>::SharedPtr followerCommandPub_;
   Eigen::Vector2d lastFollowerCommand_;
 

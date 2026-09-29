@@ -86,6 +86,7 @@ BicycleMPCJointPathTracker::BicycleMPCJointPathTracker(const Config::ConstPtr& c
   followerRouteSrv_ = robot_state->node->create_client<FollowingRouteSrv>(follower_route_service);
   followerOdomSub_ = robot_state->node->create_subscription<OdomMsg>(follower_odom_topic, rclcpp::SystemDefaultsQoS(), std::bind(&BicycleMPCJointPathTracker::onFollowerOdom, this, _1));
   followerCommandPub_ = robot_state->node->create_publisher<Command>(follower_cmd_topic, 10);
+  estimatedDistancePub_ = robot_state->node->create_publisher<FloatMsg>("estimated_leader_distance", 10);
  
 }
 
@@ -171,9 +172,12 @@ void BicycleMPCJointPathTracker::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, c
 
   const auto T_f_l = (T_w_p * T_p_r_extp).inverse() * T_w_f_extp;
   CLOG(DEBUG, "mpc.follower") << "TF to leader:\n" <<  T_f_l;
-  const Eigen::Vector<double, 3> dist = T_f_l.r_ab_inb();
-  CLOG(DEBUG, "mpc.follower") << "Dist to leader:\n" << dist.head<2>().norm();
-  
+  const Eigen::Vector<double, 3> dist_vec = T_f_l.r_ab_inb();
+  FloatMsg internal_dist;
+  internal_dist.data = dist_vec.head<2>().norm();
+  CLOG(DEBUG, "mpc.follower") << "Displacement to leader:\n" << dist_vec;
+  CLOG(DEBUG, "mpc.follower") << "Dist to leader: " << internal_dist.data << " at stamp " << curr_time;
+  estimatedDistancePub_->publish(internal_dist);  
 
   joint_mpc_config->follower_reference_poses.clear();
   const auto [_, follower_state_p] = findRobotP(T_w_f_extp, chain);
