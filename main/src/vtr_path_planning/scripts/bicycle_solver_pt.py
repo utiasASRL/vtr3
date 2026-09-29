@@ -144,10 +144,10 @@ for k in range(1, N):
     g = ca.vertcat(g, st_next[:2] - st_next_RK4[:2])
     g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))
 
-
+# Corridor Constraints
 for k in range(N):
-    theta_k = P[n_states*(k+1) + 2]
-    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, k] - P[n_states*(k+1): n_states*(k+1)+2]))
+    theta_k = ref_poses[n_states*k + 2]
+    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, k+1] - ref_poses[n_states*k: n_states*k+2]))
 
 #Acceleration constraints
 cost_fn += cost_weights[0]*((U[:, 0] - measured_velo).T @ R_acc @ (U[:, 0] - measured_velo))
@@ -160,8 +160,6 @@ for k in range(1, N-1):
     # Angular acceleration constraints
     g = ca.vertcat(g, U[1, k] - U[1, k-1])
 
-# Terminal cost
-cost_fn += calc_cost(P, X, con, N-1, cost_weights[N-1])
 
 OPT_variables = ca.vertcat(
     X.reshape((-1, 1)),   # Example: 3x11 ---> 33x1 where 3=states, 11=N+1

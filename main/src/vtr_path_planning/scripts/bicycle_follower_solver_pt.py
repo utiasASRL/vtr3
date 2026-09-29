@@ -102,13 +102,13 @@ def so2_error(ref, current):
     rel_m = theta_to_so2(ref).T @ theta_to_so2(current)
     return ca.atan2(rel_m[1, 0], rel_m[0, 0])
 
-def calc_cost(ref, X, con, k, cost):
+def calc_cost(ref, X, con, k):
     dx = X[0, k+1] - follower_ref_poses[n_states*k]
     dy = X[1, k+1] - follower_ref_poses[n_states*k + 1]
     theta_ref = follower_ref_poses[n_states*k + 2]
     e_lat = -sin(theta_ref)*dx + cos(theta_ref)*dy
     e_lon = cos(theta_ref)*dx + sin(theta_ref)*dy
-    cost += Q_lat * e_lat**2 + Q_lon * e_lon**2 + Q_theta*so2_error(theta_ref, X[2, k+1])**2 + con.T @ R @ con
+    cost = Q_lat * e_lat**2 + Q_lon * e_lon**2 + Q_theta*so2_error(theta_ref, X[2, k+1])**2 + con.T @ R @ con
     cost += Q_dist * (ca.norm_2((X[:2, k+1] - leader_ref_poses[n_states*k:n_states*k + 2])) - d)**2
     return cost
 
@@ -118,7 +118,7 @@ st = X[:, k]
 con = U[:, k]
 last_vel = measured_velo
 st_next = X[:, k+1]
-cost_fn = calc_cost(P, X, con, k, cost_fn)
+cost_fn += calc_cost(P, X, con, k)
 k1 = motion_model(st, con, last_vel, L)
 k2 = motion_model(st + step_horizon/2*k1, con, last_vel, L)
 k3 = motion_model(st + step_horizon/2*k2, con, last_vel, L)
@@ -135,7 +135,7 @@ for k in range(1, N):
     con = U[:, k]
     last_vel = ca.vertcat(U[0, k-1], (1 - alpha) * U[1, k-1] + alpha * last_vel[1])
 
-    cost_fn = calc_cost(P, X, con, k, cost_fn)
+    cost_fn += calc_cost(P, X, con, k)
     k1 = motion_model(st, con, last_vel, L)
     k2 = motion_model(st + step_horizon/2*k1, con, last_vel, L)
     k3 = motion_model(st + step_horizon/2*k2, con, last_vel, L)
@@ -165,9 +165,6 @@ for k in range(1, N-1):
 for k in range(0, N):
     st_next = X[:, k+1]
     g = ca.vertcat(g,ca.norm_2((st_next[:2] - leader_ref_poses[n_states*k:n_states*k + 2])))
-
-# Terminal cost
-cost_fn = calc_cost(P, X, con, N-1, cost_fn)
 
 OPT_variables = ca.vertcat(
     X.reshape((-1, 1)),   # Example: 3x11 ---> 33x1 where 3=states, 11=N+1
