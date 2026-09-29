@@ -2,7 +2,7 @@ import sys
 sys.dont_write_bytecode = True
 
 import casadi as ca
-from casadi import sin, cos, pi, tan
+from casadi import sin, cos, tan
 
 # MPC for a model of a bicycle with tracking about the rear wheels
 # Following a lead vehicle.
@@ -12,9 +12,9 @@ step_horizon = 0.25  # time between steps in seconds
 N = 15          # number of look ahead steps
 
 # The first order lag weighting for the steering angle
+#TODO Make these params
 alpha = 0.7
-
-alphav = 0.0
+alpha_v = 0.0
 
 # state symbolic variables
 # We assume psi is not a state, and model imperfect rates of change by including a first order lag, reducing the states

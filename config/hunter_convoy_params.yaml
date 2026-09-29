@@ -47,7 +47,7 @@
             r1: 0.0
             r2: 3.0
             racc1: 4.0
-            racc2: 10.0
+            racc2: 5.0
           reverse:
             q_lat: 10.0
             q_lon: 3.0
