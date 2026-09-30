@@ -10,17 +10,17 @@ from unicycle_follower_solver import solver as solver_follower
 
 
 # specs
-p_init_l = 0
-p_init_f = 5.45
+p_init_l = 1.5
+p_init_f = 0
 
-dist = 5.0
-dist_margin = 2.0
+dist = 1.5
+dist_margin = 0.35
 
 v_max = 1.5
 v_min = -1.5
 w_max = 0.5
 w_min = -0.5
-v_ref = 1.0
+v_ref = 0.75
 
 lin_acc_max = 1.00
 ang_acc_max = 0.5
@@ -111,10 +111,10 @@ lbg_f = ca.DM.zeros((n_states*(N+1) + 2*N, 1))  # constraints lower bound
 ubg_f = ca.DM.zeros((n_states*(N+1) + 2*N, 1))  # constraints upper bound
 
 #Corridor Width constraints
-lbg_l[n_states*(N+1):n_states*(N+1)+N] = -100
-ubg_l[n_states*(N+1):n_states*(N+1)+N] = 100
-lbg_f[n_states*(N+1):n_states*(N+1)+N] = -100
-ubg_f[n_states*(N+1):n_states*(N+1)+N] = 100
+lbg_l[n_states*(N+1):n_states*(N+1)+N] = -0.5
+ubg_l[n_states*(N+1):n_states*(N+1)+N] = 0.5
+lbg_f[n_states*(N+1):n_states*(N+1)+N] = -0.5
+ubg_f[n_states*(N+1):n_states*(N+1)+N] = 0.5
 
 lbg_f[n_states*(N+1)+N:n_states*(N+1)+2*N] = dist - dist_margin
 ubg_f[n_states*(N+1)+N:n_states*(N+1)+2*N] = dist + dist_margin
@@ -427,6 +427,9 @@ if __name__ == '__main__':
     print('Total time: ', main_loop_time - main_loop)
     print('avg iteration time: ', np.array(times).mean() * 1000, 'ms')
     print('final error: ', ss_error)
+
+    if not solver_follower.stats()["success"]:
+        exit(1)
 
     plt.plot(cat_controls_l[0])
     plt.plot(cat_controls_l[1])

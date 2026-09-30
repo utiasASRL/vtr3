@@ -36,7 +36,6 @@
           ang_alpha: 0.0
           lin_alpha: 0.0
           max_lin_acc: 0.5
-          vehicle_model: "bicycle"
           wheelbase: 0.65
           failure_threshold: -1
 
@@ -48,7 +47,7 @@
             r1: 0.0
             r2: 3.0
             racc1: 4.0
-            racc2: 10.0
+            racc2: 5.0
           reverse:
             q_lat: 10.0
             q_lon: 3.0
@@ -62,7 +61,7 @@
         control_period: 100
         distance_margin: 0.35
         waypoint_selection: euclidean
-        waypoint_source: leader_ref
+        waypoint_source: leader_pred
         longitudinal_control:
           kp: 2.0
           ki: 0.5
@@ -83,7 +82,6 @@
           ang_alpha: 0.0
           lin_alpha: 0.0
           max_lin_acc: 0.5
-          vehicle_model: "bicycle"
           wheelbase: 0.65
           recovery_steps: 15
           failure_threshold: -1
