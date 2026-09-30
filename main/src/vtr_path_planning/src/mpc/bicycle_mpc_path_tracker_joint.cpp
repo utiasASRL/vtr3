@@ -246,13 +246,19 @@ std::map<std::string, casadi::DM> BicycleMPCJointPathTracker::callSolver(CasadiM
   return result;
 }
 
+void BicycleMPCJointPathTracker::setRunning(const bool running) {
+  if (!running) {
+    follower_root_ = tactic::VertexId::Invalid();
+  }
+  BicycleMPCPathTracker::setRunning(running);
+}
 
 void BicycleMPCJointPathTracker::followerRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture future) {
   auto result = future.get();
   auto route = result->following_route;
   if (robot_state_->chain.valid() && robot_state_->chain->sequence().size() > 0 && route.ids.size() > 0 && route.ids.front() != follower_root_) { 
 
-    follower_root_ = route.ids.front();
+    follower_root_ = tactic::VertexId(0, 0);
     CLOG(INFO, "mpc.follower") << "Updated follower's root to: " << follower_root_;
     const auto leader_root = robot_state_->chain->sequence().front();
     CLOG(INFO, "mpc.follower") << "Leader's root is: " << leader_root;

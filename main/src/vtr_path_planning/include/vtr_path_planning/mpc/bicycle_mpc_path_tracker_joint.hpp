@@ -77,6 +77,9 @@ class BicycleMPCJointPathTracker : public BicycleMPCPathTracker {
                  const Callback::Ptr& callback);
   ~BicycleMPCJointPathTracker() override;
 
+  void setRunning(const bool running) override;
+
+
  protected:
   void initializeRoute(RobotState& robot_state);
 
