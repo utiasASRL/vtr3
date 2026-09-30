@@ -71,8 +71,7 @@ auto BicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node,
       << ", r1: " << config->f_r1
       << ", r2: " << config->f_r2
       << ", racc1: " << config->f_racc1
-      << ", racc2: " << config->f_racc2
-      << ", alpha: " << config->alpha;
+      << ", racc2: " << config->f_racc2;
 
   CLOG(DEBUG, "cbit.control") << "Bicycle MPC reverse parameters: "
       << "q_lat: " << config->r_q_lat

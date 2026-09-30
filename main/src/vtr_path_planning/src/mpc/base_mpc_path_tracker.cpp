@@ -53,7 +53,6 @@ auto BaseMPCPathTracker::Config::loadConfig(BaseMPCPathTracker::Config::Ptr conf
   config->robot_linear_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_linear_velocity_scale", config->robot_linear_velocity_scale);
   config->robot_angular_velocity_scale = node->declare_parameter<double>(prefix + ".mpc.robot_angular_velocity_scale", config->robot_angular_velocity_scale);
   config->repeat_flipped = node->declare_parameter<bool>(prefix + ".mpc.repeat_flipped", config->repeat_flipped);
-  config->alpha = node->declare_parameter<float>(prefix + ".mpc.alpha", config->alpha);
 }
 
 // Subclasses must implement their own Config::fromROS.
