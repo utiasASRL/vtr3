@@ -39,6 +39,11 @@ void BicycleMPCPathTrackerFollower::Config::loadConfig(BicycleMPCPathTrackerFoll
   config->f_q_dist = node->declare_parameter<double>(prefix + ".mpc.forward.q_dist", config->f_q_dist);
   config->r_q_dist = node->declare_parameter<double>(prefix + ".mpc.reverse.q_dist", config->r_q_dist);
 
+  // Longitudinal control for PID
+  config->kp = node->declare_parameter<double>(prefix + ".longitudinal_control.kp", config->kp);
+  config->ki = node->declare_parameter<double>(prefix + ".longitudinal_control.ki", config->ki);
+  config->kd = node->declare_parameter<double>(prefix + ".longitudinal_control.kd", config->kd);
+
   // Waypoint selection
   config->waypoint_selection = node->declare_parameter<std::string>(prefix + ".waypoint_selection", config->waypoint_selection);
   config->waypoint_source    = node->declare_parameter<std::string>(prefix + ".waypoint_source", config->waypoint_source);
@@ -56,6 +61,9 @@ auto BicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPt
 
   CLOG(DEBUG, "cbit.control") << "Bicycle Tracker MPC reverse costs: "
       << ", q_dist: " << config->r_q_dist;
+
+  CLOG(DEBUG, "cbit.control") << "Longitudinal control params: kP: " << config->kp
+      << ", kI: " << config->ki << ", kD: " << config->kd;
 
   return config;
 }
