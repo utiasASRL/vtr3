@@ -62,6 +62,9 @@ auto BicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPt
   CLOG(DEBUG, "cbit.control") << "Bicycle Tracker MPC reverse costs: "
       << ", q_dist: " << config->r_q_dist;
 
+  CLOG(DEBUG, "cbit.control") << "Longitudinal control params: kP: " << config->kp
+      << ", kI: " << config->ki << ", kD: " << config->kd;
+
   return config;
 }
 
