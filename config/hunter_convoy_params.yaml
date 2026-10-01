@@ -137,7 +137,7 @@
     bicycle_mpc_follower:
       leader_namespace:
         /mr_green 
-      follow_distance: 1.5
+      follow_distance: 2.0
 
 /mr_green/vtr/navigator:
   ros__parameters:
@@ -145,7 +145,7 @@
     bicycle_mpc_follower:
       leader_namespace:
         /prof_plum 
-      follow_distance: 1.5
+      follow_distance: 2.0
 
 # /col_mustard/vtr/navigator:
 #   ros__parameters:
