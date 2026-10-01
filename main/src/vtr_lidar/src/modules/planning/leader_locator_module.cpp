@@ -105,7 +105,7 @@ void LeaderLocator::run_(QueryCache &qdata0, OutputCache &,
   leader_position.head<3>() += config_->extrinsic.at(0)*normal;
 
   Eigen::Vector4d leader_in_follower = T_s_r.inverse().matrix() * leader_position;
-  leader_in_follower(2) -= config_->extrinsic.at(2);
+  leader_in_follower(2) += config_->extrinsic.at(2);
 
 
   CLOG(DEBUG, static_name)

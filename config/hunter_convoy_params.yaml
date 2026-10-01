@@ -10,7 +10,7 @@
         type: lidar.leader_locator
         maximum_distance: 5.0
         minimum_distance: 0.0
-        extrinsic: [0.0454,0.0,0.25]
+        extrinsic: [0.0321,0.0,-0.4683]
         intensity_threshold: 10000.0
         publish: true
     tactic:
