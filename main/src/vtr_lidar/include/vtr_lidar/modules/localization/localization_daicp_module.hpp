@@ -17,9 +17,19 @@ class LocalizationDAICPModule : public tactic::BaseModule {
   /** \brief Static module identifier. */
   static constexpr auto static_name = "lidar.localization_daicp";
 
+  /** \brief DA-ICP method, selected by the `method` config parameter. */
+  enum class Method {
+    HybridQP,  // da_hybridqp_lib.hpp (from aeva_warthog_qp)
+    Hybrid,    // da_hybrid_lib.hpp   (from aeva_warthog_w)
+    P2Plane,   // da_p2plane_lib.hpp  (from aeva_warthog_speed)
+  };
+
   /** \brief Config parameters. */
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
+
+    /// method: "HybridQP", "Hybrid" or "P2Plane"
+    Method method = Method::Hybrid;
 
     /// general
     int num_threads = 4;                        // number of threads for nearest neighbor search
@@ -37,7 +47,7 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     int max_gn_iter = 2;                        // max gauss-newton iterations per daicp step
     // daicp - degeneracy threshold
     double degeneracy_thresh = 100.0;           // use relative condition number to set eigenvalue threshold
-    // daicp - QP constraint bounds (per-iteration cap on |v_i^T x| in the
+    // [HybridQP only] daicp - QP constraint bounds (per-iteration cap on |v_i^T x| in the
     // degenerate subspace; x is the GN perturbation about the current iterate
     // and is in *scaled* coords, i.e. rotation entries are multiplied by ell_mr
     // inside daGaussNewton). Larger values = looser constraint = closer to the
@@ -59,10 +69,10 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     //   false -> computeDaicpCovarianceDefault (legacy 1/epsilon * Vd Vd^T inflation)
     // Use this to A/B compare the two covariance models.
     bool use_prior_prop_cov = true;
-    // daicp - QP solver name (CasADi conic plugin). Supported:
+    // [HybridQP only] daicp - QP solver name (CasADi conic plugin). Supported:
     //   "qrqp"  : QR-based active-set, pure C++, robust on tiny dense problems (recommended)
     //   "osqp"  : ADMM first-order; needs matching libosqp ABI, upper-tri H sparsity
-    //   "qpoases", "nlpsol" (IPOPT) : also supported, see daicp_qp_lib.hpp
+    //   "qpoases", "nlpsol" (IPOPT) : also supported, see da_hybridqp_lib.hpp
     std::string qp_solver_name = "qrqp";
     // daicp - range and bearing noise model
     double sigma_d = 0.02;                      // range noise std (2cm)
@@ -92,7 +102,7 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     float trans_outlier_thresh = 0.1;           // threshold on translation outlier rejection to default to odometry
     float rot_outlier_thresh = 0.001;           // threshold on rotation outlier rejection to default to odometry
     float min_matched_ratio = 0.4;              // success criteria
-    // correspondence-count floor: if fewer than this many pairs survive distance/curvature filtering,
+    // [HybridQP only] correspondence-count floor: if fewer than this many pairs survive distance/curvature filtering,
     // skip the GN solve and fall back to the odometry prior. Prevents rank-deficient Hessians
     // (cond. number explosion) when the predicted T_r_v is so wrong that the distance filter
     // rejects nearly all correspondences. 6 DoF -> need >> 6 pairs; 100 is a safe floor.
@@ -100,9 +110,9 @@ class LocalizationDAICPModule : public tactic::BaseModule {
     // online gyroscope bias
     bool calc_gy_bias = false;
     float calc_gy_bias_thresh = 1.0;
-    // curvature ratio threshold to default to odometry
+    // [P2Plane only] curvature ratio threshold to default to odometry
     float curv_ratio_thresh = 0.95;           
-    // threshold to consider a point as high curvature
+    // [Hybrid, HybridQP] threshold to consider a point as high curvature (use p2point jacobian)
     float high_curv_thresh = 0.8;               
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,

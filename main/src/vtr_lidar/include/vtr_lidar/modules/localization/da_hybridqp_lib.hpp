@@ -1,84 +1,551 @@
 #pragma once
 
-#include <Eigen/Dense>
-#include <Eigen/Eigenvalues>
-#include "steam.hpp"
-#include "vtr_logging/logging.hpp"
-#include <iostream>
-#include <vector>
-#include "daicp_qp_lib.hpp"
+// HybridQP: hybrid point-to-point / point-to-plane DA-ICP with a CasADi-constrained QP
+// step in degenerate directions.
+// Method-specific DA-ICP functions, reproduced verbatim from branch aeva_warthog_qp.
+// Functions shared by all methods live in da_lib.hpp (namespace da_lib); they
+// are visible here through the enclosing namespace.
+// Parameter ordering is [translation, orientation].
+
+#include "vtr_lidar/modules/localization/da_lib.hpp"
+#include <casadi/casadi.hpp>
+#include <map>
+#include <chrono>
+#include <cmath>
 
 namespace vtr {
 namespace lidar {
 
 class LocalizationDAICPModule;
 
-namespace daicp_lib {
+namespace da_lib {
+namespace hybridqp {
+
+// =================== CasADi QP solver (formerly daicp_qp_lib.hpp) ===================
+/**
+ * @file da_hybridqp_lib.hpp (QP solver section)
+ * @brief CasADi-based QP solver for Degeneracy-Aware ICP
+ * 
+ * This library implements a constrained quadratic programming solver for handling
+ * degeneracy in ICP pose estimation problems using CasADi's optimization framework.
+ * 
+ * The core optimization problem is:
+ *     min (1/2) x^T F x + f^T x
+ *     s.t. -ε_i ≤ v_i^T x ≤ ε_i  for each degenerate direction v_i
+ * 
+ * where:
+ *     F = 2 A^T W A (weighted Hessian)
+ *     f = -2 A^T W b (weighted gradient)
+ *     v_i = columns of Vd (pre-computed degenerate directions)
+ *     ε_i = constraint bounds based on epsilon_dx per-DOF limits
+ */
+
+namespace daicp_qp {
+
+// =================== QP Solver Result Structure ===================
+struct QPSolverResult {
+    bool success;
+    Eigen::VectorXd x_optimal;
+    double objective_value;
+    double solve_time;
+    std::string solver_status;
+    int iterations;
+    
+    QPSolverResult() 
+        : success(false), 
+          x_optimal(Eigen::VectorXd::Zero(6)),
+          objective_value(std::numeric_limits<double>::infinity()),
+          solve_time(0.0),
+          solver_status("not_solved"),
+          iterations(0) {}
+};
+// =================== Helper Functions ===================
+// Direct memory access for faster conversion
+inline casadi::DM eigenToCasadiDM(const Eigen::MatrixXd& eigen_mat) {
+    std::vector<double> data(eigen_mat.data(), eigen_mat.data() + eigen_mat.size());
+    return casadi::DM(casadi::Sparsity::dense(eigen_mat.rows(), eigen_mat.cols()), data);
+}
+
+// inline Eigen::VectorXd casadiDMToEigen(const casadi::DM& casadi_vec) {
+//     std::vector<double> data = casadi_vec.get_elements();
+//     return Eigen::Map<Eigen::VectorXd>(data.data(), data.size());
+// }
+inline Eigen::VectorXd casadiDMToEigen(const casadi::DM& casadi_vec) {
+    // Safe conversion: copy element by element
+    const int size = casadi_vec.size1() * casadi_vec.size2();
+    Eigen::VectorXd result(size);
+    for (int i = 0; i < size; ++i) {
+        result(i) = static_cast<double>(casadi_vec(i));
+    }
+    return result;
+}
+
+inline void printQPProblemInfo(const Eigen::MatrixXd& F, 
+                               const Eigen::VectorXd& /* f */,
+                               const Eigen::MatrixXd& Vd,
+                               const Eigen::VectorXd& epsilon_dx) {
+    CLOG(DEBUG, "lidar.localization_daicp") << "=== DA-ICP QP Problem Setup ===";
+    CLOG(DEBUG, "lidar.localization_daicp") << "Problem size: " << F.rows() << " variables";
+    CLOG(DEBUG, "lidar.localization_daicp") << "Degenerate directions: " << Vd.cols();
+    CLOG(DEBUG, "lidar.localization_daicp") << "Constraint bounds (epsilon_dx):";
+    CLOG(DEBUG, "lidar.localization_daicp") << "  Translation [dx,dy,dz]: [" 
+        << epsilon_dx(0) << ", " << epsilon_dx(1) << ", " << epsilon_dx(2) << "] m";
+    CLOG(DEBUG, "lidar.localization_daicp") << "  Rotation [dr,dp,dy]: [" 
+        << epsilon_dx(3) << ", " << epsilon_dx(4) << ", " << epsilon_dx(5) << "] rad";
+    CLOG(DEBUG, "lidar.localization_daicp") << "  Rotation [dr,dp,dy]: [" 
+        << epsilon_dx(3) * 180.0 / M_PI << "°, " 
+        << epsilon_dx(4) * 180.0 / M_PI << "°, " 
+        << epsilon_dx(5) * 180.0 / M_PI << "°]";
+}
+
+// =================== Static Solver Cache ===================
+// Cache multiple solvers for different problem dimensions to avoid repeated creation/destruction
+struct QRQPSolverCache {
+    std::map<std::pair<int, int>, casadi::Function> solvers;  // Map from (n, k) to solver
+    
+    casadi::Function getSolver(int n, int k, bool verbose) {
+        auto key = std::make_pair(n, k);
+        
+        // Check if solver for this dimension already exists
+        auto it = solvers.find(key);
+        if (it != solvers.end()) {
+            if (verbose) {
+                CLOG(DEBUG, "lidar.localization_daicp") << "Reusing cached solver for n=" << n << ", k=" << k;
+            }
+            return it->second;
+        }
+        
+        // Create new solver for this dimension
+        if (verbose) {
+            CLOG(DEBUG, "lidar.localization_daicp") << "Creating new solver for n=" << n << ", k=" << k;
+        }
+        
+        casadi::Sparsity H_sparsity = casadi::Sparsity::dense(n, n);
+        casadi::Sparsity A_sparsity = (k > 0) ? casadi::Sparsity::dense(k, n) : casadi::Sparsity(0, n);
+        
+        casadi::SpDict qp;
+        qp["h"] = H_sparsity;
+        qp["a"] = A_sparsity;
+        
+        casadi::Dict opts;
+        opts["max_iter"] = 100;
+        opts["constr_viol_tol"] = 1e-8;
+        opts["dual_inf_tol"] = 1e-8;
+        opts["print_problem"] = verbose;
+        opts["print_header"] = verbose;
+        opts["print_iter"] = verbose;
+        
+        casadi::Function solver = casadi::conic("qrqp_solver", "qrqp", qp, opts);
+        
+        // Store in cache and return
+        solvers[key] = solver;
+        return solver;
+    }
+};
+
+static QRQPSolverCache& getQRQPCache() {
+    static QRQPSolverCache cache;
+    return cache;
+}
+
+// =================== Constrained QP Solver (CasADi Conic Interface) ===================
+inline QPSolverResult solveConstrainedQPConic(
+    const Eigen::MatrixXd& F,
+    const Eigen::VectorXd& f,
+    const Eigen::MatrixXd& Vd,
+    const Eigen::VectorXd& epsilon_dx,
+    const std::string& solver_name = "osqp",
+    bool verbose = false) {
+    
+    QPSolverResult result;
+    auto start_time = std::chrono::high_resolution_clock::now();
+    
+    try {
+        const int n = F.rows();
+        const int k = Vd.cols();
+        
+        // ===== INPUT VALIDATION (defense against qrqp abort/SIGSEGV) =====
+        // CasADi's qrqp plugin can hard-abort (calls std::abort, not throw)
+        // when given non-finite, near-zero, or rank-deficient inputs. We
+        // pre-screen here and bail out cleanly so the caller can fall back
+        // to the unconstrained solution.
+        if (!F.allFinite() || !f.allFinite() || !Vd.allFinite() || !epsilon_dx.allFinite()) {
+            CLOG(WARNING, "lidar.localization_daicp")
+                << "QP input contains non-finite values (F.finite=" << F.allFinite()
+                << ", f.finite=" << f.allFinite()
+                << ", Vd.finite=" << Vd.allFinite()
+                << ", eps.finite=" << epsilon_dx.allFinite()
+                << "), skipping constrained QP";
+            result.success = false;
+            result.solver_status = "input_non_finite";
+            auto end_time = std::chrono::high_resolution_clock::now();
+            result.solve_time = std::chrono::duration<double>(end_time - start_time).count();
+            return result;
+        }
+        if (n != F.cols() || n <= 0 || k < 0 || k > n) {
+            CLOG(WARNING, "lidar.localization_daicp")
+                << "QP input has invalid shape (F=" << F.rows() << "x" << F.cols()
+                << ", k=" << k << ", n=" << n << ")";
+            result.success = false;
+            result.solver_status = "input_bad_shape";
+            auto end_time = std::chrono::high_resolution_clock::now();
+            result.solve_time = std::chrono::duration<double>(end_time - start_time).count();
+            return result;
+        }
+
+        // Ensure Hessian symmetry
+        Eigen::MatrixXd H = 0.5 * (F + F.transpose());
+
+        // Compute constraint bounds as LINEAR PROJECTION
+        // For each degenerate direction v_i, the bound is: |v_i^T * epsilon_dx|
+        // We take absolute value because v_i can point in either direction
+        Eigen::VectorXd epsilon_c(k);
+        for (int i = 0; i < k; ++i) {
+            Eigen::VectorXd v_i = Vd.col(i);
+            // Linear projection: |v_i^T * epsilon_dx|
+            epsilon_c(i) = std::abs(v_i.dot(epsilon_dx));
+        }
+
+        // Floor extremely small bounds. Constraint widths < 1e-6 effectively
+        // pin x to zero in that direction and have triggered hard aborts in
+        // qrqp's active-set logic on rank-deficient problems. The caller's
+        // `computeUpdateStep` fallback handles these directions correctly.
+        constexpr double kMinBoundWidth = 1e-6;
+        bool tightened_bounds = false;
+        for (int i = 0; i < k; ++i) {
+            if (!std::isfinite(epsilon_c(i)) || epsilon_c(i) < kMinBoundWidth) {
+                epsilon_c(i) = kMinBoundWidth;
+                tightened_bounds = true;
+            }
+        }
+        if (tightened_bounds) {
+            CLOG(WARNING, "lidar.localization_daicp")
+                << "QP: clamped degenerate-direction bound(s) to " << kMinBoundWidth
+                << " to avoid qrqp instability";
+        }
+        // ================================================================
+
+        
+        if (verbose) {
+            CLOG(DEBUG, "lidar.localization_daicp") << "Constraint bounds per degenerate direction:";
+            for (int i = 0; i < k; ++i) {
+                CLOG(DEBUG, "lidar.localization_daicp") << "  Direction " << (i+1) 
+                    << ": ±" << epsilon_c(i);
+            }
+            CLOG(DEBUG, "lidar.localization_daicp") << "Converting matrices to CasADi format...";
+            CLOG(DEBUG, "lidar.localization_daicp") << "  H: " << H.rows() << "x" << H.cols();
+            CLOG(DEBUG, "lidar.localization_daicp") << "  f: " << f.size();
+            CLOG(DEBUG, "lidar.localization_daicp") << "  Vd: " << Vd.rows() << "x" << Vd.cols();
+        }
+        
+        // Convert Eigen matrices to CasADi DM
+        casadi::DM H_casadi = eigenToCasadiDM(H);
+        if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "  H_casadi created";
+        
+        casadi::DM g_casadi = eigenToCasadiDM(f);
+        if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "  g_casadi created";
+        
+        casadi::DM A_casadi = eigenToCasadiDM(Vd.transpose()); // Constraint matrix A = Vd^T
+        if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "  A_casadi created";
+        
+        // Create structured QP using sparsity patterns
+        if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "Creating QP structure...";
+        casadi::SpDict qp;
+        // OSQP requires the Hessian sparsity to be upper-triangular (it internally
+        // stores only the upper triangle). Passing a full dense pattern segfaults
+        // inside the plugin. For other CasADi conic plugins (qrqp, qpoases, nlpsol)
+        // we keep the dense pattern, which is fastest for small problems.
+        if (solver_name == "osqp") {
+            qp["h"] = casadi::Sparsity::upper(n);
+        } else {
+            qp["h"] = H_casadi.sparsity();
+        }
+        qp["a"] = A_casadi.sparsity();
+        
+        // Solver options
+        casadi::Dict opts;
+        if (solver_name == "osqp") {
+            casadi::Dict osqp_opts;
+            osqp_opts["verbose"] = verbose;
+            osqp_opts["polish"] = true;
+            osqp_opts["eps_abs"] = 1e-8;
+            osqp_opts["eps_rel"] = 1e-8;
+            opts["osqp"] = osqp_opts;
+        } else if (solver_name == "qrqp") {
+            // qrqp is a QR-based active-set QP solver (pure C++, no external dependencies)
+            opts["max_iter"] = 100;
+            opts["constr_viol_tol"] = 1e-8;
+            opts["dual_inf_tol"] = 1e-8;
+        } else if (solver_name == "nlpsol") {
+            // nlpsol wraps NLP solvers (like IPOPT) for the conic interface
+            opts["nlpsol"] = "ipopt";  // Use IPOPT as the backend
+            casadi::Dict ipopt_opts;
+            ipopt_opts["ipopt.print_level"] = verbose ? 5 : 0;
+            ipopt_opts["ipopt.max_iter"] = 100;
+            ipopt_opts["ipopt.tol"] = 1e-6;
+            ipopt_opts["ipopt.acceptable_tol"] = 1e-4;
+            ipopt_opts["print_time"] = false;
+            opts["nlpsol_options"] = ipopt_opts;
+        } else if (solver_name == "qpoases") {
+            opts["printLevel"] = verbose ? "high" : "none";
+        }
+        
+        // Create or retrieve cached solver
+        casadi::Function solver;
+        if (solver_name == "qrqp") {
+            // Use cached solver for qrqp to avoid repeated creation/destruction
+            if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "Getting qrqp solver (n=" << n << ", k=" << k << ")...";
+            solver = getQRQPCache().getSolver(n, k, verbose);
+            if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "qrqp solver ready";
+        } else {
+            // For other solvers, create fresh instance
+            if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << "Creating " << solver_name << " solver...";
+            solver = casadi::conic("qp_solver", solver_name, qp, opts);
+            if (verbose) CLOG(DEBUG, "lidar.localization_daicp") << solver_name << " solver created successfully";
+        }
+        
+        // ========== Prepare Constraint Bounds ==========
+        // CasADi conic interface uses the standard form:
+        //   minimize:   (1/2) x^T H x + g^T x
+        //   subject to: lba ≤ A*x ≤ uba    (general linear constraints)
+        //               lbx ≤  x  ≤ ubx    (simple box constraints)
+        //
+        // Since we set A = Vd^T, the constraint "lba ≤ A*x ≤ uba" becomes:
+        //   lba ≤ Vd^T*x ≤ uba
+        //
+        // For each degenerate direction v_i (the i-th column of Vd):
+        //   lba(i) ≤ v_i^T * x ≤ uba(i)
+        //
+        // We want to constrain the projection of x onto each degenerate direction
+        // to be within ±(projection of epsilon_dx onto that direction):
+        //   -(v_i^T * epsilon_dx) ≤ v_i^T * x ≤ (v_i^T * epsilon_dx)
+        //
+        // Since v_i can point in either direction, we use absolute value:
+        // Therefore: lba(i) = -epsilon_c(i), uba(i) = epsilon_c(i)
+        // where epsilon_c(i) = |v_i^T * epsilon_dx| (computed above, always positive)
+        
+        // Lower and upper bounds on A*x (i.e., on Vd^T*x)
+        casadi::DM lba_casadi = casadi::DM::zeros(k, 1);  // Bounds on A*x = Vd^T*x
+        casadi::DM uba_casadi = casadi::DM::zeros(k, 1);  // Bounds on A*x = Vd^T*x
+        for (int i = 0; i < k; ++i) {
+            lba_casadi(i) = -epsilon_c(i);  // Lower bound: -(v_i^T * epsilon_dx)
+            uba_casadi(i) = epsilon_c(i);   // Upper bound: +(v_i^T * epsilon_dx)
+        }
+        
+        // Lower and upper bounds on x itself (unbounded)
+        casadi::DM lbx_casadi = casadi::DM::zeros(n, 1);  // Bounds on x
+        casadi::DM ubx_casadi = casadi::DM::zeros(n, 1);  // Bounds on x
+        for (int i = 0; i < n; ++i) {
+            lbx_casadi(i) = -std::numeric_limits<double>::infinity();  // No lower bound on x
+            ubx_casadi(i) = std::numeric_limits<double>::infinity();   // No upper bound on x
+        }
+        
+        // Solve QP problem with CasADi conic interface
+        casadi::DMDict arg;
+        // For OSQP we declared an upper-triangular Hessian sparsity above; the
+        // numeric H must match that sparsity, otherwise the plugin will misread
+        // memory and segfault.
+        if (solver_name == "osqp") {
+            casadi::DM H_upper = casadi::DM::zeros(casadi::Sparsity::upper(n));
+            for (int j = 0; j < n; ++j) {
+                for (int i = 0; i <= j; ++i) {
+                    H_upper(i, j) = H(i, j);
+                }
+            }
+            arg["h"] = H_upper;
+        } else {
+            arg["h"] = H_casadi;      // Hessian matrix (full / dense)
+        }
+        arg["g"] = g_casadi;      // Linear term
+        arg["a"] = A_casadi;      // Constraint matrix A = Vd^T
+        arg["lba"] = lba_casadi;  // Lower bounds on A*x (i.e., Vd^T*x)
+        arg["uba"] = uba_casadi;  // Upper bounds on A*x (i.e., Vd^T*x)
+        arg["lbx"] = lbx_casadi;  // Lower bounds on x (unbounded)
+        arg["ubx"] = ubx_casadi;  // Upper bounds on x (unbounded)
+        
+        casadi::DMDict sol = solver(arg);
+        
+        // Extract solution
+        result.x_optimal = casadiDMToEigen(sol.at("x"));
+        result.objective_value = static_cast<double>(sol.at("cost"));
+
+        // ===== POST-SOLVE SANITY CHECK =====
+        // Even when the solver returns "ok", the result can be NaN/Inf on
+        // ill-posed problems (esp. with active-set qrqp on near-rank-deficient
+        // KKT). Treat that as failure so the caller falls back.
+        if (!result.x_optimal.allFinite() || !std::isfinite(result.objective_value)) {
+            CLOG(WARNING, "lidar.localization_daicp")
+                << "QP returned non-finite solution (status=ok), treating as failure";
+            result.success = false;
+            result.solver_status = "non_finite_solution";
+            result.x_optimal.setZero();
+            auto end_time = std::chrono::high_resolution_clock::now();
+            result.solve_time = std::chrono::duration<double>(end_time - start_time).count();
+            return result;
+        }
+        result.success = true;
+        result.solver_status = solver_name + ": optimal";
+        
+        // Get solver statistics
+        casadi::Dict stats = solver.stats();
+        if (stats.find("iter_count") != stats.end()) {
+            result.iterations = static_cast<int>(stats.at("iter_count"));
+        } else if (stats.find("iterations") != stats.end()) {
+            result.iterations = static_cast<int>(stats.at("iterations"));
+        }
+        
+    } catch (const std::exception& e) {
+        CLOG(ERROR, "lidar.localization_daicp") << "QP solver failed: " << e.what();
+        // Also write to stderr in case the spdlog buffer is lost on later abort
+        std::cerr << "[ERROR] DA-ICP QP solver threw std::exception: "
+                  << e.what() << std::endl;
+        result.success = false;
+        result.solver_status = std::string("error: ") + e.what();
+        result.x_optimal.setZero();
+    } catch (...) {
+        // Catch any non-std exception (e.g. raw casadi internals or
+        // implementation-specific types). Without this, an unknown throw
+        // type calls std::terminate -> abort.
+        CLOG(ERROR, "lidar.localization_daicp")
+            << "QP solver failed with unknown (non-std) exception";
+        std::cerr << "[ERROR] DA-ICP QP solver threw unknown exception type"
+                  << std::endl;
+        result.success = false;
+        result.solver_status = "error: unknown_exception";
+        result.x_optimal.setZero();
+    }
+    
+    auto end_time = std::chrono::high_resolution_clock::now();
+    result.solve_time = std::chrono::duration<double>(end_time - start_time).count();
+    
+    return result;
+}
+
+// =================== Unconstrained QP Solver ===================
+inline QPSolverResult solveUnconstrainedQP(
+    const Eigen::MatrixXd& F,
+    const Eigen::VectorXd& f,
+    bool verbose = false) {
+    
+    QPSolverResult result;
+    auto start_time = std::chrono::high_resolution_clock::now();
+    
+    try {
+        // Solve F x + f = 0 => x = -F^(-1) f
+        Eigen::VectorXd x_optimal = -F.ldlt().solve(f);
+        
+        result.x_optimal = x_optimal;
+        result.objective_value = (0.5 * x_optimal.transpose() * F * x_optimal)(0,0)
+                                + (f.transpose() * x_optimal)(0,0);
+        result.success = true;
+        result.solver_status = "optimal";
+        result.iterations = 1;
+        
+    } catch (const std::exception& e) {
+        if (verbose) {
+            CLOG(WARNING, "lidar.localization_daicp") 
+                << "Hessian is singular, using pseudo-inverse";
+        }
+        
+        // Use pseudo-inverse for singular F
+        Eigen::JacobiSVD<Eigen::MatrixXd> svd(F, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        Eigen::VectorXd x_optimal = -svd.solve(f);
+        
+        result.x_optimal = x_optimal;
+        result.objective_value = (0.5 * x_optimal.transpose() * F * x_optimal)(0,0)
+                                + (f.transpose() * x_optimal)(0,0);
+        result.success = true;
+        result.solver_status = "optimal_pseudoinverse";
+        result.iterations = 1;
+    }
+    
+    auto end_time = std::chrono::high_resolution_clock::now();
+    result.solve_time = std::chrono::duration<double>(end_time - start_time).count();
+    
+    return result;
+}
+
+
+// =================== Main QP Solver Interface ===================
+inline QPSolverResult solveDaicpQP(
+    const Eigen::MatrixXd& A,
+    const Eigen::VectorXd& b,
+    const Eigen::VectorXd& W_inv,
+    const Eigen::MatrixXd& Vd,
+    const Eigen::VectorXd& epsilon_dx,
+    bool verbose = false) {
+    
+    // Input validation
+    if (epsilon_dx.size() != 6) {
+        CLOG(ERROR, "lidar.localization_daicp") 
+            << "epsilon_dx must be size 6, got " << epsilon_dx.size();
+        return QPSolverResult();
+    }
+    
+    if (A.cols() != 6) {
+        CLOG(ERROR, "lidar.localization_daicp") 
+            << "A must have 6 columns, got " << A.cols();
+        return QPSolverResult();
+    }
+    
+    if (Vd.rows() != 6) {
+        CLOG(ERROR, "lidar.localization_daicp") 
+            << "Vd must have 6 rows, got " << Vd.rows();
+        return QPSolverResult();
+    }
+    
+    // Compute QP matrices using weighted least squares
+    Eigen::MatrixXd F = 2.0 * A.transpose() * W_inv.asDiagonal() * A;  // Weighted Hessian
+    Eigen::VectorXd f = -2.0 * A.transpose() * W_inv.asDiagonal() * b; // Weighted gradient
+    
+    if (verbose) {
+        printQPProblemInfo(F, f, Vd, epsilon_dx);
+    }
+    
+    // Check if we have any degenerate directions to constrain
+    QPSolverResult result;
+    
+    if (Vd.cols() > 0) {
+        // Solve constrained QP using OSQP via CasADi conic interface
+        if (verbose) {
+            CLOG(DEBUG, "lidar.localization_daicp") 
+                << "Solving constrained QP using Conic (OSQP)";
+        }
+        result = solveConstrainedQPConic(F, f, Vd, epsilon_dx, "osqp", verbose);
+        
+    } else {
+        // No constraints needed, solve unconstrained QP
+        if (verbose) {
+            CLOG(DEBUG, "lidar.localization_daicp") 
+                << "No degenerate directions found, solving unconstrained problem";
+        }
+        result = solveUnconstrainedQP(F, f, verbose);
+    }
+    
+    if (verbose) {
+        CLOG(DEBUG, "lidar.localization_daicp") << "=== QP Solver Result ===";
+        CLOG(DEBUG, "lidar.localization_daicp") << "Success: " << (result.success ? "true" : "false");
+        CLOG(DEBUG, "lidar.localization_daicp") << "Status: " << result.solver_status;
+        CLOG(DEBUG, "lidar.localization_daicp") << "Iterations: " << result.iterations;
+        CLOG(DEBUG, "lidar.localization_daicp") << "Solve time: " << result.solve_time << " seconds";
+        CLOG(DEBUG, "lidar.localization_daicp") << "Objective value: " << result.objective_value;
+        CLOG(DEBUG, "lidar.localization_daicp") << "Solution: [" << result.x_optimal.transpose() << "]";
+    }
+    
+    return result;
+}
+
+
+}  // namespace daicp_qp
+
 
 // =================== Print Functions ===================
-inline void printEigenvalues(const Eigen::VectorXd& eigenvalues, 
-                             const std::string& label = "Eigenvalues") {
-  CLOG(DEBUG, "lidar.localization_daicp") << label << ": [" << eigenvalues.transpose() << "]";
-}
-
-inline void printWellConditionedDirections(const Eigen::VectorXd& eigenvalues, 
-                                           double threshold) {
-  // Per-GN-iter chatter; uncomment for active QP debugging.
-  (void)eigenvalues; (void)threshold;
-  std::string directions_str = "Well-conditioned directions: [";
-  for (int i = 0; i < eigenvalues.size(); ++i) {
-    directions_str += (eigenvalues(i) > threshold) ? "True" : "False";
-    if (i < eigenvalues.size() - 1) directions_str += ", ";
-  }
-  directions_str += "]";
-  CLOG(DEBUG, "lidar.localization_daicp") << directions_str;
-}
-
 inline void printCovarianceInfo(const Eigen::MatrixXd& daicp_cov) {
   const Eigen::VectorXd diagonal = daicp_cov.diagonal();
   const Eigen::VectorXd std_dev = diagonal.cwiseSqrt();
   
   CLOG(DEBUG, "lidar.localization_daicp") << "Final covariance P diagonal (roll, pitch, yaw, x, y, z): [" << diagonal.transpose() << "]";
   CLOG(DEBUG, "lidar.localization_daicp") << "Final std (roll, pitch, yaw, x, y, z): [" << std_dev.transpose() << "]";
-}
-
-// =================== Range/Bearing Noise Model Utilities ===================
-inline Eigen::Vector3d omegaFromAzEl(double az, double el) {
-  const double c_az = std::cos(az), s_az = std::sin(az);
-  const double c_el = std::cos(el), s_el = std::sin(el);
-  return Eigen::Vector3d(c_el * c_az, c_el * s_az, s_el);
-}
-
-inline Eigen::Matrix<double, 3, 2> NFromAzEl(double az, double el) {
-  const double c_az = std::cos(az), s_az = std::sin(az);
-  const double c_el = std::cos(el), s_el = std::sin(el);
-  
-  Eigen::Matrix<double, 3, 2> N;
-  N << -c_el * s_az, -s_el * c_az,
-        c_el * c_az, -s_el * s_az,
-        0.0,          c_el;
-  return N;
-}
-
-inline Eigen::Matrix3d skewSymmetric(const Eigen::Vector3d& v) {
-  Eigen::Matrix3d skew;
-  skew <<     0, -v(2),  v(1),
-           v(2),     0, -v(0),
-          -v(1),  v(0),     0;
-  return skew;
-}
-
-inline Eigen::Matrix3d computeRangeBearingCovariance(double d, double az, double el, 
-                                                    const Eigen::Matrix3d& Sigma_du) {
-  const Eigen::Vector3d w = omegaFromAzEl(az, el);
-  const Eigen::Matrix<double, 3, 2> N = NFromAzEl(az, el);
-  
-  // JA = [w, -d * [w]× * N] where [w]× is skew-symmetric matrix of w
-  Eigen::Matrix3d JA;
-  JA.col(0) = w;
-  JA.block<3, 2>(0, 1) = -d * skewSymmetric(w) * N;
-  
-  return JA * Sigma_du * JA.transpose();
 }
 
 // =================== Block Scaling Functions ===================
@@ -185,7 +652,7 @@ inline double computeScalingFactorMax(const Eigen::Matrix3d& H_marg_theta,
     // block can lose PSD-ness due to floating-point), or if the translation
     // information is vanishingly small, fall back to a sane default rather than
     // returning NaN (which propagates through D_inv -> H_scaled -> QP and crashes
-    // the solver later, see daicp_lib.hpp::computeThreshold and downstream QP).
+    // the solver later, see da_lib.hpp::computeThreshold and downstream QP).
     if (max_t < 1e-12 || max_theta < 1e-12 ||
         !std::isfinite(max_theta) || !std::isfinite(max_t)) {
         std::cout << "[WARNING] computeScalingFactorMax: degenerate marginal Hessian "
@@ -286,127 +753,6 @@ inline Eigen::Matrix<double, 6, 6> makePD(const Eigen::Matrix<double, 6, 6>& cov
     // Reconstruct the matrix
     return eigenvectors * eigenvalues.asDiagonal() * eigenvectors.transpose();
 }
-
-inline Eigen::Matrix<double, 6, 6> computeDaicpCovariance(
-                                              const Eigen::Matrix<double, 6, 6>& Vf, 
-                                              const Eigen::VectorXd& eigen_vf, 
-                                              const Eigen::Matrix<double, 6, Eigen::Dynamic>& Vd,
-                                              const Eigen::Matrix<double, 6, 6>& prior_cov,
-                                              double degenerate_cov_alpha) {
-  // Apply solution remapping + regularization in covariance matrix
-  
-  // Find non-zero columns in Vf
-  std::vector<int> valid_cols;
-  for (int i = 0; i < Vf.cols(); ++i) {
-    if (Vf.col(i).norm() > 1e-12) {
-      valid_cols.push_back(i);
-    }
-  }
-  
-  // CLOG(DEBUG, "lidar.localization_daicp") << "Vf (6x6):\n" << Vf;
-  // CLOG(DEBUG, "lidar.localization_daicp") << "eigen_vf: [" << eigen_vf.transpose() << "]";
-  // CLOG(DEBUG, "lidar.localization_daicp") << "Vd :\n" << Vd;
-  // Extract non-zero parts
-  Eigen::MatrixXd Vf_reduced(Vf.rows(), valid_cols.size());
-  Eigen::VectorXd eigen_vf_reduced(valid_cols.size());
-  for (size_t i = 0; i < valid_cols.size(); ++i) {
-    Vf_reduced.col(i) = Vf.col(valid_cols[i]);
-    eigen_vf_reduced(i) = eigen_vf(valid_cols[i]);
-  }
-  
-  // CLOG(DEBUG, "lidar.localization_daicp") << "Vf_reduced (6x" << Vf_reduced.cols() << "):\n" << Vf_reduced;
-  // CLOG(DEBUG, "lidar.localization_daicp") << "eigen_vf_reduced: [" << eigen_vf_reduced.transpose() << "]";
-
-  Eigen::Matrix<double, 6, 6> daicpCov;
-  if ((Vf_reduced.cols() == 6) && (Vd.cols() == 0)) {
-    // No degenerate directions
-    daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose();
-  } else {
-    // Per-GN-iter; uncomment for degeneracy debug.
-    // CLOG(DEBUG, "lidar.localization_daicp") << Vf_reduced.cols() << " non-degenerate directions and "
-    //                                        << Vd.cols() << " degenerate directions.";
-    //
-    // Covariance in degenerate directions is set proportional to the prior:
-    //   sigma_i^2 = alpha * v_i^T * Sigma_prior * v_i        (alpha >> 1)
-    // so STEAM's joint posterior gives the lidar weight 1/(1+alpha) along v_i.
-    // This is scale-invariant in the prior (large or small) and converges to
-    // the rank-deficient (Bayesian-correct) solution as alpha -> infinity.
-    //
-    // Floor on the projected prior variance: prevents a degenerate direction
-    // collapsing if the prior happens to be tiny in that direction (which
-    // would re-introduce the old "fictitious lidar information" failure mode).
-    constexpr double kMinPriorVar = 1e3;
-    daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose();
-    for (int i = 0; i < Vd.cols(); ++i) {
-      const Eigen::Matrix<double, 6, 1> v = Vd.col(i);
-      double prior_var = v.dot(prior_cov * v);
-      if (!std::isfinite(prior_var) || prior_var < kMinPriorVar) prior_var = kMinPriorVar;
-      const double sigma2_i = degenerate_cov_alpha * prior_var;
-      daicpCov.noalias() += sigma2_i * (v * v.transpose());
-    }
-  }
-
-  // CLOG(DEBUG, "lidar.localization_daicp") << "daicpCov: \n" << daicpCov;
-
-  // [Debug] Perform eigen decomposition to check positive definiteness
-  // --- the daicpCov is PD with all eigenvalues > 0.
-  // Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigensolver(daicpCov);
-  // if (eigensolver.info() == Eigen::Success) {
-  //   Eigen::VectorXd daicpCov_eigenvalues = eigensolver.eigenvalues();
-  //   CLOG(DEBUG, "lidar.localization_daicp") << "daicpCov eigenvalues: [" << daicpCov_eigenvalues.transpose() << "]";
-  // } else {
-  //   CLOG(WARNING, "lidar.localization_daicp") << "Failed to compute eigenvalues for daicpCov";
-  // }
-  // // daicpCov = makePD(daicpCov);
-  // Eigen::Matrix<double, 6, 6> dummy_cov = Eigen::Matrix<double, 6, 6>::Identity();
-  // dummy_cov.diagonal() << 0.1, 0.1, 0.1, 1e-2, 1e-2, 1e-2;  // [x,y,z,rx,ry,rz]
-  // daicpCov = dummy_cov; 
-
-  return daicpCov;
-}
-
-
-inline Eigen::Matrix<double, 6, 6> computeDaicpCovarianceDefault(
-                                  const Eigen::Matrix<double, 6, 6>& Vf, 
-                                  const Eigen::VectorXd& eigen_vf, 
-                                  const Eigen::Matrix<double, 6, Eigen::Dynamic>& Vd) {
-  // Apply solution remapping + regularization in covariance matrix
-  
-  // Find non-zero columns in Vf
-  std::vector<int> valid_cols;
-  for (int i = 0; i < Vf.cols(); ++i) {
-    if (Vf.col(i).norm() > 1e-12) {
-      valid_cols.push_back(i);
-    }
-  }
-
-  // Extract non-zero parts
-  Eigen::MatrixXd Vf_reduced(Vf.rows(), valid_cols.size());
-  Eigen::VectorXd eigen_vf_reduced(valid_cols.size());
-  for (size_t i = 0; i < valid_cols.size(); ++i) {
-    Vf_reduced.col(i) = Vf.col(valid_cols[i]);
-    eigen_vf_reduced(i) = eigen_vf(valid_cols[i]);
-  }
-
-  Eigen::Matrix<double, 6, 6> daicpCov;
-  if ((Vf_reduced.cols() == 6) && (Vd.cols() == 0)) {
-    // No degenerate directions
-    daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose();
-  } else {
-    CLOG(DEBUG, "lidar.localization_daicp") << Vf_reduced.cols() << " non-degenerate directions and " 
-                                           << Vd.cols() << " degenerate directions.";
-    // With degenerate directions
-    // [NOTE] a small epsilon, i.e. 1e-6, will lead to very large values in degenerate directions,
-    // we set epsilon to be 1e-1 or 1e-2 for covariance inflation.
-    // Consider to use the prior covariance in degenerated directions. 
-    const double epsilon = 1e-3;  
-    daicpCov = Vf_reduced * eigen_vf_reduced.cwiseInverse().asDiagonal() * Vf_reduced.transpose() +
-              (1.0/epsilon) * (Vd *Vd.transpose());
-  }
-
-  return daicpCov;
-}
-
 
 // =================== point-to-plane Jacobian Computation ===================
 inline Eigen::VectorXd computeP2PlaneJacobian(
@@ -591,52 +937,6 @@ inline void computeJacobianResidualInformation(
   }
 }
 
-inline void constructWellConditionedDirections(
-    const Eigen::VectorXd& eigenvalues,
-    const Eigen::Matrix<double, 6, 6>& eigenvectors,
-    double eigenvalue_threshold,
-    Eigen::Matrix<double, 6, 6>& V,
-    Eigen::Matrix<double, 6, 6>& Vf,
-    Eigen::VectorXd& eigen_vf,
-    Eigen::Matrix<double, 6, Eigen::Dynamic>& Vd) {
-
-  const int n_dims = eigenvalues.size();
-  
-  // V is the full eigenvector matrix (each column is an eigenvector)
-  V = eigenvectors;
-
-  // Initialize Vf, Vd, eigen_vf as zeros
-  Vf.setZero();
-  Vd = Eigen::Matrix<double, 6, Eigen::Dynamic>::Zero(6, n_dims);
-  eigen_vf.setZero(n_dims);
-
-
-  // // Debug logging for eigenvalues and threshold
-  // CLOG(DEBUG, "lidar.localization_daicp") << "Eigenvalues: [" << eigenvalues.transpose() << "]";
-  // CLOG(DEBUG, "lidar.localization_daicp") << "Eigenvalue threshold: " << eigenvalue_threshold;  
-
-  // Find well-conditioned directions using the threshold
-  std::vector<bool> well_conditioned_mask(n_dims);
-  // int num_well_conditioned = 0;
-  int deg_count = 0;
-  for (int i = 0; i < n_dims; ++i) {
-    well_conditioned_mask[i] = eigenvalues[i] > eigenvalue_threshold;
-    if (well_conditioned_mask[i]) {
-      Vf.col(i) = V.col(i);
-      eigen_vf[i] = eigenvalues[i];
-      // num_well_conditioned++;
-    }
-    else {
-      Vd.col(deg_count) = V.col(i);
-      deg_count++;
-    }
-  }
-  Vd.conservativeResize(6, deg_count);
-  
-  // Print well-conditioned directions with color coding
-  printWellConditionedDirections(eigenvalues, eigenvalue_threshold);
-}
-
 inline Eigen::VectorXd computeUpdateStep(
     const Eigen::MatrixXd& A,
     const Eigen::VectorXd& b,
@@ -670,100 +970,6 @@ inline Eigen::VectorXd computeUpdateStep(
 
     // Project onto well-conditioned subspace (solution remapping)
     return V * (Vf.transpose() * delta_x_f);
-}
-
-inline bool computeEigenvalueDecomposition(
-    const Eigen::Matrix<double, 6, 6>& H,
-    Eigen::VectorXd& eigenvalues,
-    Eigen::Matrix<double, 6, 6>& eigenvectors) {
-
-  // Add regularization 
-  const double reg_val = 1e-12;
-  Eigen::Matrix<double, 6, 6> H_reg = H + reg_val * Eigen::Matrix<double, 6, 6>::Identity(H.rows(), H.cols());
-
-  try {
-    // Primary method: SelfAdjointEigenSolver
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eigen_solver(H_reg);
-
-    if (eigen_solver.info() != Eigen::Success) {
-      CLOG(WARNING, "lidar.localization_daicp") << "Eigenvalue decomposition failed, trying SVD fallback";
-      
-      // Fallback to SVD 
-      Eigen::JacobiSVD<Eigen::Matrix<double, 6, 6>> svd(H_reg, Eigen::ComputeFullU | Eigen::ComputeFullV);
-      eigenvalues = svd.singularValues();
-      eigenvectors = svd.matrixU();
-      
-      // Threshold tiny singular values
-      const double eigenvalue_threshold = 1e-10;
-      for (int i = 0; i < eigenvalues.size(); ++i) {
-        if (eigenvalues(i) < eigenvalue_threshold) {
-          eigenvalues(i) = 0.0;
-        }
-      }
-      
-      // SVD fallback successful
-      return true;
-    }
-    
-    eigenvalues = eigen_solver.eigenvalues();
-    eigenvectors = eigen_solver.eigenvectors();
-    
-    // Sort eigenvalues in descending order 
-    std::vector<std::pair<double, int>> eigen_pairs;
-    for (int i = 0; i < eigenvalues.size(); ++i) {
-      eigen_pairs.push_back(std::make_pair(eigenvalues(i), i));
-    }
-    std::sort(eigen_pairs.begin(), eigen_pairs.end(), 
-              [](const auto& a, const auto& b) { return a.first > b.first; });
-    
-    Eigen::VectorXd sorted_eigenvalues(eigenvalues.size());
-    Eigen::Matrix<double, 6, 6> sorted_eigenvectors(eigenvectors.rows(), eigenvectors.cols());
-    
-    for (int i = 0; i < eigenvalues.size(); ++i) {
-      sorted_eigenvalues(i) = eigen_pairs[i].first;
-      sorted_eigenvectors.col(i) = eigenvectors.col(eigen_pairs[i].second);
-    }
-    
-    eigenvalues = sorted_eigenvalues;
-    eigenvectors = sorted_eigenvectors;
-    
-    // Threshold tiny eigenvalues
-    const double eigenvalue_threshold = 1e-10;
-    for (int i = 0; i < eigenvalues.size(); ++i) {
-      if (eigenvalues(i) < eigenvalue_threshold) {
-        eigenvalues(i) = 0.0;
-      }
-    }
-    
-    // Debug logging to verify eigenvalues 
-    // CLOG(DEBUG, "lidar.localization_daicp") << "Eigenvalues (descending): [" << eigenvalues.transpose() << "]";
-    
-    return true;
-    
-  } catch (const std::exception& e) {
-    CLOG(ERROR, "lidar.localization_daicp") << "Exception in eigenvalue decomposition: " << e.what();
-    return false;
-  }
-}
-
-inline double computeThreshold(const Eigen::VectorXd& eigenvalues, 
-                               const double cond_num_thresh_ratio) {
-
-  const double max_eigenval = eigenvalues.maxCoeff();
-
-  // ----- Compute threshold based on condition number ratio
-  // A direction is well-conditioned if: max_eigenval / eigenval < cond_num_thresh_ratio
-  // Rearranging: eigenval > max_eigenval / cond_num_thresh_ratio
-  const double eigenvalue_threshold = max_eigenval / cond_num_thresh_ratio;
-
-  // Per-GN-iter info; uncomment when actively debugging the QP path.
-  CLOG(DEBUG, "lidar.localization_daicp") << "Relative Condition Number Threshold: " << cond_num_thresh_ratio;
-  for (int i = 0; i < eigenvalues.size(); ++i) {
-    double cond_num = (eigenvalues(i) > 1e-15) ? (max_eigenval / eigenvalues(i)) : std::numeric_limits<double>::infinity();
-    CLOG(DEBUG, "lidar.localization_daicp") << "Condition number [" << i << "]: " << cond_num;
-  }
-
-  return eigenvalue_threshold;
 }
 
 inline bool daGaussNewton(
@@ -1116,7 +1322,7 @@ inline bool daGaussNewton(
   return true;
 }
 
-
-}  // daicp_lib
+}  // namespace hybridqp
+}  // namespace da_lib
 }  // namespace lidar
 }  // namespace vtr

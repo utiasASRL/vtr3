@@ -318,6 +318,11 @@
         calc_gy_bias_thresh: 10.0            # [s]
       daicp:
         type: lidar.localization_daicp
+        # DA-ICP method (see da_lib.hpp and da_<method>_lib.hpp):
+        #   "HybridQP" -> aeva_warthog_qp    : hybrid p2point/p2plane + CasADi-constrained QP step in degenerate directions
+        #   "Hybrid"   -> aeva_warthog_w     : hybrid p2point/p2plane + solution remapping
+        #   "P2Plane"  -> aeva_warthog_speed : point-to-plane only + solution remapping
+        method: "Hybrid"
         # general
         num_threads: 8
         target_loc_time: 100.0                # [ms] lower down to 60.0
@@ -333,13 +338,13 @@
         max_gn_iter: 1
         # daicp - degeneracy threshold
         degeneracy_thresh: 150.0               # we use condition number to set the threshold
-        # daicp - QP per-iter slack on |v_i^T x| in the degenerate subspace
+        # [HybridQP only] daicp - QP per-iter slack on |v_i^T x| in the degenerate subspace
         # (x is the GN perturbation in scaled coords). Larger = looser
         # constraint, closer to unconstrained step on borderline-degenerate
         # frames in feature-rich environments.
         qp_eps_trans: 0.02                    # [m]   per-iter translation cap
         qp_eps_rot: 0.02                      # [rad] per-iter rotation cap (~2.9 deg)
-        # CasADi conic plugin: "qrqp" (recommended), "osqp", "qpoases", "nlpsol"
+        # [HybridQP only] CasADi conic plugin: "qrqp" (recommended), "osqp", "qpoases", "nlpsol"
         qp_solver_name: "qrqp"
         # daicp - degenerate-direction covariance scaling
         # In each degenerate direction v_i, set sigma_i^2 = alpha * v_i^T Sigma_prior v_i.
@@ -375,9 +380,9 @@
         # online gyro bias estimation
         calc_gy_bias: false
         calc_gy_bias_thresh: 10.0             # [s]
-        # curvature ratio threshold to default to odometry
+        # [P2Plane only] curvature ratio threshold to default to odometry
         curv_ratio_thresh: 0.98
-        # threshold to consider a point as high curvature -> use p2point jacobian
+        # [Hybrid, HybridQP] threshold to consider a point as high curvature -> use p2point jacobian
         high_curv_thresh: 0.7                  
 
       safe_corridor:

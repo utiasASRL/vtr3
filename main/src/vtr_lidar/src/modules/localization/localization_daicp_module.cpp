@@ -1,5 +1,8 @@
 #include "vtr_lidar/modules/localization/localization_daicp_module.hpp"
-#include "vtr_lidar/modules/localization/daicp_lib.hpp"
+#include "vtr_lidar/modules/localization/da_lib.hpp"
+#include "vtr_lidar/modules/localization/da_hybridqp_lib.hpp"
+#include "vtr_lidar/modules/localization/da_hybrid_lib.hpp"
+#include "vtr_lidar/modules/localization/da_p2plane_lib.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
 namespace vtr {
@@ -9,11 +12,39 @@ using namespace tactic;
 using namespace steam;
 using namespace steam::se3;
 
+namespace {
+
+LocalizationDAICPModule::Method methodFromString(const std::string &name) {
+  using Method = LocalizationDAICPModule::Method;
+  if (name == "HybridQP") return Method::HybridQP;
+  if (name == "Hybrid") return Method::Hybrid;
+  if (name == "P2Plane") return Method::P2Plane;
+  std::string err = "Unknown DA-ICP method '" + name +
+                    "'. Expected one of: HybridQP, Hybrid, P2Plane.";
+  CLOG(ERROR, "lidar.localization_daicp") << err;
+  throw std::invalid_argument(err);
+}
+
+std::string methodToString(LocalizationDAICPModule::Method method) {
+  using Method = LocalizationDAICPModule::Method;
+  switch (method) {
+    case Method::HybridQP: return "HybridQP";
+    case Method::Hybrid: return "Hybrid";
+    case Method::P2Plane: return "P2Plane";
+  }
+  return "Unknown";
+}
+
+}  // namespace
+
 auto LocalizationDAICPModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
                                             const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
+  // method
+  config->method = methodFromString(node->declare_parameter<std::string>(param_prefix + ".method", methodToString(config->method)));
+  CLOG(INFO, "lidar.localization_daicp") << "DA-ICP method: " << methodToString(config->method);
   // general
   config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
   config->target_loc_time = node->declare_parameter<float>(param_prefix + ".target_loc_time", config->target_loc_time);
@@ -180,6 +211,16 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
   timer.emplace_back(std::make_unique<Stopwatch>(false));
   clock_str.push_back("Compute Covariance . ");
   timer.emplace_back(std::make_unique<Stopwatch>(false));
+
+  // DA-ICP method selection. Behaviour that only existed on one method's
+  // branch is gated on these flags so each method reproduces its branch.
+  const bool is_hybridqp = config_->method == Method::HybridQP;
+  const bool is_p2plane = config_->method == Method::P2Plane;
+
+  // [P2Plane] internal ordering is [roll,pitch,yaw,x,y,z]; permutation used to
+  // convert the covariance to/from lgmath [x,y,z,roll,pitch,yaw] order
+  Eigen::PermutationMatrix<6> Pm;
+  Pm.indices() << 3, 4, 5, 0, 1, 2;
 
   // ICP results
   EdgeTransform T_r_v_icp;
@@ -394,13 +435,13 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
                                               << filtered_sample_inds.size() << " (no curvature).";
     }
 
-    // ====== Pair-count floor =========================================
+    // ====== [HybridQP] Pair-count floor ==============================
     // If too few correspondences survived filtering, the Hessian will be
     // rank-deficient (cond[5] -> 1e8..1e10) and the QP solver may produce
     // NaN scaling factors. Bail out early and trust the odometry prior.
     // (Diagnosed in qp_test3 2026-04-30: filtered pairs collapsed to ~30
     // when prior cov was inflated, producing inf eigenvalues / NaN bounds.)
-    if (static_cast<int>(filtered_sample_inds.size()) < config_->min_pair_count) {
+    if (is_hybridqp && static_cast<int>(filtered_sample_inds.size()) < config_->min_pair_count) {
       CLOG(WARNING, "lidar.localization_daicp")
           << "Insufficient correspondences after filtering ("
           << filtered_sample_inds.size() << " < " << config_->min_pair_count
@@ -418,24 +459,68 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
     // Initialize output covariance matrix
     Eigen::Matrix<double, 6, 6> daicp_cov = Eigen::MatrixXd::Zero(6, 6);
 
-    bool optimization_success = daicp_lib::daGaussNewton(
-        // inputs
-        filtered_sample_inds,  // point correspondences
-        high_curv_match,       // high curvature match flags 
-        query_mat,             // source points
-        map_mat,               // target points
-        map_normals_mat,       // target normals
-        // state to be optimized
-        T_m_s_var,
-        // configuration
-        config_,
-        // prior covariance on T_r_v (used to size the DA-ICP covariance in
-        // degenerate directions: sigma_i^2 = alpha * v_i^T * Sigma_prior * v_i)
-        T_r_v.cov(),
-        // output
-        daicp_cov
-      );
-    // [note] the covariance order is [x,y,z,roll,pitch,yaw]
+    bool optimization_success = false;
+    switch (config_->method) {
+      case Method::HybridQP:
+        optimization_success = da_lib::hybridqp::daGaussNewton(
+            // inputs
+            filtered_sample_inds,  // point correspondences
+            high_curv_match,       // high curvature match flags
+            query_mat,             // source points
+            map_mat,               // target points
+            map_normals_mat,       // target normals
+            // state to be optimized
+            T_m_s_var,
+            // configuration
+            config_,
+            // prior covariance on T_r_v (used to size the DA-ICP covariance in
+            // degenerate directions: sigma_i^2 = alpha * v_i^T * Sigma_prior * v_i)
+            T_r_v.cov(),
+            // output
+            daicp_cov
+          );
+        // [note] the covariance order is [x,y,z,roll,pitch,yaw]
+        break;
+      case Method::Hybrid:
+        optimization_success = da_lib::hybrid::daGaussNewton(
+            // inputs
+            filtered_sample_inds,  // point correspondences
+            high_curv_match,       // high curvature match flags
+            query_mat,             // source points
+            map_mat,               // target points
+            map_normals_mat,       // target normals
+            // state to be optimized
+            T_m_s_var,
+            // configuration
+            config_,
+            // prior covariance on T_r_v (used to size DA-ICP covariance in
+            // degenerate directions: sigma_i^2 = alpha * v_i^T * Sigma_prior * v_i)
+            T_r_v.cov(),
+            // output
+            daicp_cov
+          );
+        // [note] the covariance order is [x,y,z,roll,pitch,yaw]
+        break;
+      case Method::P2Plane:
+        optimization_success = da_lib::p2plane::daGaussNewtonP2Plane(
+            // inputs
+            filtered_sample_inds,
+            query_mat,             // source points
+            map_mat,               // target points
+            map_normals_mat,       // target normals
+            // state to be optimized
+            T_m_s_var,
+            // configuration
+            config_,
+            // prior cov reordered from lgmath [x,y,z,rx,ry,rz] -> internal [rx,ry,rz,x,y,z]
+            Pm * T_r_v.cov() * Pm.transpose(),
+            // output
+            daicp_cov
+          );
+        // convert the covariance back to [x,y,z,roll,pitch,yaw] order
+        daicp_cov = Pm.transpose() * daicp_cov * Pm;
+        break;
+    }
     /// ########################################################################### ///
 
     if (!optimization_success) {
@@ -474,23 +559,27 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       Eigen::Matrix4d T2 = all_tfs.block<4, 4>(all_tfs.rows() - 4, 0);
       Eigen::Matrix4d T1 = all_tfs.block<4, 4>(all_tfs.rows() - 8, 0);
       Eigen::Matrix4d diffT = T2 * T1.inverse();
-      // Defensive: tran2vec throws std::runtime_error on non-finite / invalid
-      // SO(3). Don't let it crash the whole vtr_navigation process - skip
-      // this convergence-tracking update and break out of the ICP loop.
-      if (!diffT.allFinite()) {
-        CLOG(WARNING, "lidar.localization_daicp")
-            << "Non-finite inter-step transformation diff at step " << step
-            << "; aborting ICP loop.";
-        break;
-      }
       Eigen::Matrix<double, 6, 1> diffT_vec;
-      try {
+      if (is_hybridqp) {
+        // [HybridQP] Defensive: tran2vec throws std::runtime_error on non-finite / invalid
+        // SO(3). Don't let it crash the whole vtr_navigation process - skip
+        // this convergence-tracking update and break out of the ICP loop.
+        if (!diffT.allFinite()) {
+          CLOG(WARNING, "lidar.localization_daicp")
+              << "Non-finite inter-step transformation diff at step " << step
+              << "; aborting ICP loop.";
+          break;
+        }
+        try {
+          diffT_vec = lgmath::se3::tran2vec(diffT);
+        } catch (const std::exception& e) {
+          CLOG(WARNING, "lidar.localization_daicp")
+              << "lgmath::tran2vec failed at convergence check (" << e.what()
+              << "); aborting ICP loop at step " << step;
+          break;
+        }
+      } else {
         diffT_vec = lgmath::se3::tran2vec(diffT);
-      } catch (const std::exception& e) {
-        CLOG(WARNING, "lidar.localization_daicp")
-            << "lgmath::tran2vec failed at convergence check (" << e.what()
-            << "); aborting ICP loop at step " << step;
-        break;
       }
       float dT_b = diffT_vec.block<3, 1>(0, 0).norm();
       float dR_b = diffT_vec.block<3, 1>(3, 0).norm();
@@ -558,17 +647,19 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       // auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(daicp_cov);  // [DEBUG] sometimes daicp is not PD
       Eigen::Matrix<double, 6, 6> diag_daicp_cov = daicp_cov.diagonal().asDiagonal();
       auto daicp_noise_model = StaticNoiseModel<6>::MakeShared(diag_daicp_cov);
-      CLOG(INFO, "lidar.localization_daicp")
-          << "[DIAG] daicp_cov diag (full): [" << daicp_cov.diagonal().transpose() << "]";
-      CLOG(INFO, "lidar.localization_daicp")
-          << "[DIAG] prior  cov diag      : [" << T_r_v.cov().diagonal().transpose() << "]";
+      if (is_hybridqp) {
+        CLOG(INFO, "lidar.localization_daicp")
+            << "[DIAG] daicp_cov diag (full): [" << daicp_cov.diagonal().transpose() << "]";
+        CLOG(INFO, "lidar.localization_daicp")
+            << "[DIAG] prior  cov diag      : [" << T_r_v.cov().diagonal().transpose() << "]";
+      }
 
       auto T_m_s_daicp_meas = SE3StateVar::MakeShared(T_m_s_var->value());  T_m_s_daicp_meas->locked() = true;
 
       // ============ [DIAG] What does DA-ICP alone (the lidar) say T_r_v should be? ============
       // T_m_s = (T_s_r * T_r_v * T_v_m)^{-1}
       // =>  T_r_v_lidar_only = T_s_r^{-1} * T_m_s^{-1} * T_v_m^{-1}
-      {
+      if (is_hybridqp) {
         const auto T_m_s_meas = T_m_s_var->value();
         const Eigen::Matrix4d T_r_v_lidar_mat =
             T_s_r.matrix().inverse() * T_m_s_meas.matrix().inverse() * T_v_m.matrix().inverse();
@@ -591,17 +682,21 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       joint_problem.addCostTerm(daicp_cost_term);
 
       // ============ [DIAG] cost contributions BEFORE solve ====================================
-      const double cost_prior_before = prior_cost_term->cost();
-      const double cost_daicp_before = daicp_cost_term->cost();
-      CLOG(INFO, "lidar.localization_daicp")
-          << "[DIAG] joint cost BEFORE: prior=" << cost_prior_before
-          << ", daicp=" << cost_daicp_before
-          << ", ratio(daicp/prior)=" << (cost_prior_before > 1e-12 ? cost_daicp_before / cost_prior_before : -1.0);
+      double cost_prior_before = 0.0;
+      double cost_daicp_before = 0.0;
+      if (is_hybridqp) {
+        cost_prior_before = prior_cost_term->cost();
+        cost_daicp_before = daicp_cost_term->cost();
+        CLOG(INFO, "lidar.localization_daicp")
+            << "[DIAG] joint cost BEFORE: prior=" << cost_prior_before
+            << ", daicp=" << cost_daicp_before
+            << ", ratio(daicp/prior)=" << (cost_prior_before > 1e-12 ? cost_daicp_before / cost_prior_before : -1.0);
+      }
       // ========================================================================================
 
       // Solve the joint optimization problem
       GaussNewtonSolver::Params joint_params;
-      joint_params.verbose = true;  // [DEBUG] inspect lidar vs prior cost contribution
+      joint_params.verbose = is_hybridqp;  // [HybridQP: DEBUG] inspect lidar vs prior cost contribution
       joint_params.max_iterations = config_->max_pfusion_iter;
       GaussNewtonSolver joint_solver(joint_problem, joint_params);
 
@@ -610,12 +705,14 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       Covariance joint_covariance(joint_solver);
 
       // ============ [DIAG] cost contributions AFTER solve =====================================
-      const double cost_prior_after = prior_cost_term->cost();
-      const double cost_daicp_after = daicp_cost_term->cost();
-      CLOG(INFO, "lidar.localization_daicp")
-          << "[DIAG] joint cost AFTER:  prior=" << cost_prior_after
-          << ", daicp=" << cost_daicp_after
-          << ", total_drop=" << ((cost_prior_before + cost_daicp_before) - (cost_prior_after + cost_daicp_after));
+      if (is_hybridqp) {
+        const double cost_prior_after = prior_cost_term->cost();
+        const double cost_daicp_after = daicp_cost_term->cost();
+        CLOG(INFO, "lidar.localization_daicp")
+            << "[DIAG] joint cost AFTER:  prior=" << cost_prior_after
+            << ", daicp=" << cost_daicp_after
+            << ", total_drop=" << ((cost_prior_before + cost_daicp_before) - (cost_prior_after + cost_daicp_after));
+      }
       // ========================================================================================
 
       // -------- Check difference between prior and computed T_r_v
@@ -627,9 +724,11 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
       const double rotation_diff = T_diff_vec.tail<3>().norm();
 
       // ============ [DIAG] joint posterior delta from prior ===================================
-      CLOG(INFO, "lidar.localization_daicp")
-          << "[DIAG] Joint posterior T_r_v vs prior:  trans=" << translation_diff
-          << " m, rot=" << rotation_diff << " rad";
+      if (is_hybridqp) {
+        CLOG(INFO, "lidar.localization_daicp")
+            << "[DIAG] Joint posterior T_r_v vs prior:  trans=" << translation_diff
+            << " m, rot=" << rotation_diff << " rad";
+      }
       // ========================================================================================
 
       // OUTLIER REJECTION: larger than 0.3m or 0.2rad (11.5deg)
@@ -643,12 +742,13 @@ void LocalizationDAICPModule::run_(QueryCache &qdata0, OutputCache &output,
         T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
         matched_points_ratio = 1.0f;  // dummy value to indicate success
       } 
-      // else if (cur_ratio > config_->curv_ratio_thresh) {
-      //   // fallback to using prior
-      //   CLOG(DEBUG, "lidar.localization_daicp") << "Query point cloud flat curvature ratio: " << cur_ratio << "larger than threshold: " << config_->curv_ratio_thresh << ", fall back to odometry.";
-      //   T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
-      //   matched_points_ratio = 1.0f;  // dummy value to indicate success
-      // }
+      // [P2Plane] curvature-ratio fallback (only active on aeva_warthog_speed)
+      else if (is_p2plane && cur_ratio > config_->curv_ratio_thresh) {
+        // fallback to using prior
+        CLOG(DEBUG, "lidar.localization_daicp") << "Query point cloud flat curvature ratio: " << cur_ratio << "larger than threshold: " << config_->curv_ratio_thresh << ", fall back to odometry.";
+        T_r_v_icp = EdgeTransform(T_r_v_prior, T_r_v.cov());
+        matched_points_ratio = 1.0f;  // dummy value to indicate success
+      }
       else {
         // --- accept DA-ICP result
         T_r_v_icp = EdgeTransform(T_r_v_joint_var->value(), joint_covariance.query(T_r_v_joint_var));  // send both estimation and covariance
