@@ -58,7 +58,7 @@
         type: bicycle_mpc_follower
         control_period: 100
         distance_margin: 0.35
-        waypoint_selection: euclidean
+        waypoint_selection: estimated_dist
         waypoint_source: leader_pred
         longitudinal_control:
           kp: 2.0
@@ -137,7 +137,7 @@
     bicycle_mpc_follower:
       leader_namespace:
         /mr_green 
-      follow_distance: 2.0
+      follow_distance: 1.9
 
 /mr_green/vtr/navigator:
   ros__parameters:
@@ -145,7 +145,7 @@
     bicycle_mpc_follower:
       leader_namespace:
         /prof_plum 
-      follow_distance: 2.0
+      follow_distance: 1.9
 
 # /col_mustard/vtr/navigator:
 #   ros__parameters:
