@@ -9,9 +9,10 @@ add_compile_options(-Wno-unused-variable -Wno-unused-parameter -Wno-narrowing -W
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(cudpp REQUIRED)
-find_package(CUDA REQUIRED)
+find_package(cudpp)
+find_package(CUDA)
 
+if (CUDA_FOUND AND CUDA_VERSION VERSION_LESS "12.0")
 
 include(FindCUDA/select_compute_arch)
 CUDA_DETECT_INSTALLED_GPUS(INSTALLED_GPU_CCS_1)
@@ -79,5 +80,9 @@ install(
   RUNTIME DESTINATION lib/${PROJECT_NAME}
   INCLUDES DESTINATION include
 )
+elseif(CUDA_VERSION VERSION_GREATER "12.0")
+  message(WARNING "Cuda version is ${CUDA_VERSION} which is > 12.0. gpusurf only works with cuda < 12.0.")
+endif() # CUDA_FOUND
+
 
 ament_package()
