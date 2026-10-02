@@ -17,7 +17,6 @@
         control_period: 100 # ms
         follow_distance: 1.9
         distance_margin: 0.35
-        waypoint_selection: reflector
 
         speed_scheduler:
           planar_curv_weight: 0.0
