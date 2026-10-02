@@ -119,7 +119,7 @@ class BicycleMPCJointPathTracker : public BicycleMPCPathTracker {
   rclcpp::Subscription<OdomMsg>::SharedPtr followerOdomSub_;
   void onFollowerOdom(const OdomMsg::SharedPtr follower_pose);
   tactic::EdgeTransform T_fw_f_;
-  Eigen::VectorXd follower_vel_;
+  Eigen::Vector<,,6> follower_vel_;
   tactic::Timestamp follower_stamp_;
 
   rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;
