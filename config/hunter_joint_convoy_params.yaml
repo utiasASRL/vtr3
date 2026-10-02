@@ -15,8 +15,8 @@
       bicycle_mpc_joint:
         type: bicycle_mpc_joint
         control_period: 100 # ms
-        follow_distance: 1.5
-        distance_margin: 0.35
+        follow_distance: 2.0
+        distance_margin: 5.0
         waypoint_selection: euclidean
 
         speed_scheduler:
