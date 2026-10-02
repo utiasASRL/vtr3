@@ -276,6 +276,9 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
     
     if (config_->waypoint_selection != "reflector" && config_->waypoint_selection != "estimated_dist" )
       mpcConfig->cost_weights.push_back(weighting);
+    else {
+      mpcConfig->cost_weights.push_back(1.0);
+    }
     last_pose = curr_pose;
 
   }
