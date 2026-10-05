@@ -169,6 +169,7 @@ void Tactic::connectToTrunk(const EdgeMode& privileged) {
                        << T_twig_branch.inverse().vec().transpose();
   graph_->addEdge(twig_vid, branch_vid, EdgeType::Spatial, privileged,
                   T_twig_branch.inverse());
+  graph_->saveLive();
 }
 
 auto Tactic::getPersistentLoc() const -> Localization {

@@ -493,7 +493,7 @@ void RCGraph::saveEdgesLive() {
     std::unique_lock lock(mutex_);
     EdgeMsgAccessor accessor{fs::path{file_path_}, "edges", "vtr_pose_graph_msgs/msg/Edge"};
     // save all but current edge
-    while (edges_to_write_.size() > 1){
+    while (edges_to_write_.size() > 0){
       auto edge = edges_to_write_.front();
       edges_to_write_.pop();
       accessor.write(edge->serialize());
