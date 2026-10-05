@@ -219,7 +219,7 @@
         visualize: true
       memory:
         type: live_mem_manager
-        window_size: 5
+        window_size: 0
     localization:
       recall:
         type: lidar.localization_map_recall
