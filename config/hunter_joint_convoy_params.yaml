@@ -109,8 +109,8 @@
 /vtr/convoy_planning_node:
   ros__parameters:
     mr_green:
-      leader_mpc: bicycle_mpc_joint
-      follower_mpc: stationary
+      leader_mpc: stationary
+      follower_mpc: bicycle_mpc_joint
     prof_plum:
-      leader_mpc: bicycle_mpc_joint
-      follower_mpc: stationary
+      leader_mpc: stationary
+      follower_mpc: bicycle_mpc_joint

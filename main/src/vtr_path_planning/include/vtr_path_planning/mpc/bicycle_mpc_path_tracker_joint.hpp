@@ -51,7 +51,7 @@ class BicycleMPCJointPathTracker : public BicycleMPCPathTracker {
 
   struct Config : public BicycleMPCPathTracker::Config {
     PTR_TYPEDEFS(Config);
-    std::string follower_namespace = "follower";
+    std::string leader_namespace = "follower";
     
     std::string waypoint_selection = "euclidean";
 
@@ -108,23 +108,23 @@ class BicycleMPCJointPathTracker : public BicycleMPCPathTracker {
 
   RobotState::Ptr robot_state_;
 
-  tactic::EdgeTransform T_lw_fw_;
-  tactic::VertexId follower_root_ = tactic::VertexId::Invalid();
+  tactic::EdgeTransform T_fw_lw_;
+  tactic::VertexId leader_root_ = tactic::VertexId::Invalid();
 
-  rclcpp::Client<FollowingRouteSrv>::SharedPtr followerRouteSrv_;
-  void followerRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture Future);
+  rclcpp::Client<FollowingRouteSrv>::SharedPtr leaderRouteSrv_;
+  void leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture Future);
   rclcpp::Time requestTime_;
   bool hasRequestedLeaderRoute_ = false;
   
-  rclcpp::Subscription<OdomMsg>::SharedPtr followerOdomSub_;
-  void onFollowerOdom(const OdomMsg::SharedPtr follower_pose);
-  tactic::EdgeTransform T_fw_f_;
-  Eigen::Matrix<double,6,1> follower_vel_;
-  tactic::Timestamp follower_stamp_;
+  rclcpp::Subscription<OdomMsg>::SharedPtr leaderOdomSub_;
+  void onLeaderOdom(const OdomMsg::SharedPtr follower_pose);
+  tactic::EdgeTransform T_lw_l_;
+  Eigen::Matrix<double,6,1> leader_vel_;
+  tactic::Timestamp leader_stamp_;
 
   rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;
-  rclcpp::Publisher<Command>::SharedPtr followerCommandPub_;
-  Eigen::Vector2d lastFollowerCommand_;
+  rclcpp::Publisher<Command>::SharedPtr leaderCommandPub_;
+  Eigen::Vector2d lastLeaderCommand_;
 
 
 };

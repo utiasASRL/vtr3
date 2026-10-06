@@ -224,9 +224,9 @@ public:
     double distance_margin = 1.0;
     double Q_dist = 1.0;
 
-    DM T0_follower;
-    DM previous_vel_follower;
-    std::vector<DM> follower_reference_poses;
+    DM T0_leader;
+    DM previous_vel_leader;
+    std::vector<DM> leader_reference_poses;
 
     Config(const int nStates=3, const int nControl=2, const int N=15, const double DT=0.25)
         : CasadiBicycleMPC::Config(nStates, nControl, N, DT) {
