@@ -102,7 +102,7 @@
 /mr_green/vtr/navigator:
   ros__parameters:
    path_planning:
-    bicycle_mpc_follower:
+    bicycle_mpc_joint:
       leader_namespace:
         /prof_plum 
 
