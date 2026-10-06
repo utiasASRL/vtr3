@@ -96,14 +96,14 @@
   ros__parameters:
    path_planning:
     bicycle_mpc_joint:
-      follower_namespace:
+      leader_namespace:
         /mr_green 
 
 /mr_green/vtr/navigator:
   ros__parameters:
    path_planning:
     bicycle_mpc_follower:
-      follower_namespace:
+      leader_namespace:
         /prof_plum 
 
 /vtr/convoy_planning_node:
