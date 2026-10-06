@@ -58,10 +58,10 @@
         type: bicycle_mpc_follower
         control_period: 100
         distance_margin: 0.35
-        waypoint_selection: estimated_dist
+        waypoint_selection: reflector
         waypoint_source: leader_pred
         longitudinal_control:
-          kp: 1.0
+          kp: 2.0
           ki: 0.5
           kd: 0.0
         speed_scheduler:
