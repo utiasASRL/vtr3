@@ -253,7 +253,7 @@
         planar_curv_weight: 0.0
         profile_curv_weight: 1.0 
         eop_weight: 0.0
-        min_vel: 0.5
+        min_vel: 0.8
       mpc:
         # Controller Params
         extrapolate_robot_pose: true
