@@ -87,6 +87,7 @@ class TorrentPlanner(Node):
 
     def state_callback(self, graph_state):
         # if were in the following gap, keep trying to queue next repeat
+        print('state callback')
         if self.last_vtx - self.current_vtx <= 2 * self.following_gap:
             # we are approaching following gap, queue next repeat
 
