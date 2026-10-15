@@ -88,7 +88,6 @@ class TorrentPlanner(Node):
     def state_callback(self, graph_state):
         # get largest vid in the posegraph
         curr_vtx= self.last_vtx
-        pdb.set_trace()
 
         for vtx in graph_state.vertices:
             if vtx.id > self.last_vtx:
