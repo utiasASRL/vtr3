@@ -50,6 +50,7 @@ class TorrentPlanner(Node):
 
     def state_callback(self, graph_state):
         # get largest vid in the posegraph
+        print('state callback')
         for vtx in graph_state.vertices:
             self.last_vtx = max(self.last_vtx, vtx.id)
         self.try_advance()        
@@ -57,6 +58,7 @@ class TorrentPlanner(Node):
 
     def update_callback(self, graph_update):
         # if were in the following gap, keep trying to queue next repeat
+        print('update callback')
         self.last_vtx = max(self.last_vtx, graph_update.vertex_to.id)
         self.try_advance()        
 
