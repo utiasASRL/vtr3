@@ -108,10 +108,10 @@ class TorrentPlanner(Node):
     def update_callback(self, graph_update):
         # if were in the following gap, keep trying to queue next repeat
         print('state callback')
-        if self.last_vtx - self.current_vtx <= 2 * self.following_gap:
+        if self.last_vtx - self.current_vtx <= self.following_gap:
             # we are approaching following gap, queue next repeat
 
-            command_vtx = graph_update.vertex_to.id - self.following_gap
+            command_vtx = graph_update.vertex_to.id
             if command_vtx > self.current_vtx:
                 print(f'waypoint to {command_vtx}')
                 self.pack_and_publish_msg(command_vtx)
