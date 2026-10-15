@@ -111,12 +111,7 @@ class TorrentPlanner(Node):
         if self.last_vtx - self.current_vtx <= 2 * self.following_gap:
             # we are approaching following gap, queue next repeat
 
-            # update last_vtx
-            for vtx in graph_update.vertices:
-                if vtx.id > self.last_vtx:
-                    self.last_vtx = vtx.id
-
-            command_vtx = self.last_vtx - self.following_gap
+            command_vtx = graph_update.vertex_to.id - self.following_gap
             if command_vtx > self.current_vtx:
                 print(f'waypoint to {command_vtx}')
                 self.pack_and_publish_msg(command_vtx)
