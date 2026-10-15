@@ -96,8 +96,9 @@ class TorrentPlanner(Node):
                     self.last_vtx = vtx.id
 
             command_vtx = self.last_vtx - self.following_gap
-            print(f'waypoint to {command_vtx}')
-            self.pack_and_publish_msg(command_vtx)
+            if command_vtx > self.current_vtx:
+                print(f'waypoint to {command_vtx}')
+                self.pack_and_publish_msg(command_vtx)
 
     def update_callback(self, graph_update):
         if self.first_pub == True:
