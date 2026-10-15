@@ -64,14 +64,18 @@ class TorrentPlanner(Node):
 
     def try_advance(self):
         if not self.current_vtx or not self.last_vtx:
+            print('not localized')
             return # not localized
         command_vtx = self.last_vtx - self.following_gap
         if (command_vtx & 0xFFFF) < self.following_gap or command_vtx <= self.current_vtx:
+            print('not inside following gap')
             return # near start, or inside following gap; wait
         if self.target_vtx:
             if command_vtx - self.target_vtx < self.min_step:
+                print('not enough new maps')
                 return # not enough new maps
             if self.target_vtx - self.current_vtx > self.replan_margin:
+                print('current goal is good')
                 return # current goal still far
         self.target_vtx = command_vtx
         print(f"pub waypoint to {command_vtx} (current {self.current_vtx}, last {self.last_vtx})")
