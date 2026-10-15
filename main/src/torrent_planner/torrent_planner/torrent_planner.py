@@ -20,6 +20,7 @@ class TorrentPlanner(Node):
         self.following_gap = 5 # vertices
         self.min_step = 5
         self.replan_margin = 3
+        self.start_flag = True
     
         self.command_pub = self.create_publisher(
             MissionCommand,
@@ -70,13 +71,14 @@ class TorrentPlanner(Node):
         if (command_vtx & 0xFFFF) < self.following_gap or command_vtx <= self.current_vtx:
             print('not inside following gap')
             return # near start, or inside following gap; wait
-        if self.target_vtx:
+        if self.start_flag:
             if command_vtx - self.target_vtx < self.min_step:
                 print('not enough new maps')
                 return # not enough new maps
             if self.target_vtx - self.current_vtx > self.replan_margin:
                 print('current goal is good')
                 return # current goal still far
+        self.start_flag = True
         self.target_vtx = command_vtx
         print(f"pub waypoint to {command_vtx} (current {self.current_vtx}, last {self.last_vtx})")
         self.pack_and_publish_msg(command_vtx)
