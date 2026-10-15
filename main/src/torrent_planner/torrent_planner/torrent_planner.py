@@ -16,7 +16,7 @@ class TorrentPlanner(Node):
         print(f"ROBOT_NAME: {self.robot_name}")
         self.last_vtx = 0
         self.current_vtx = 0
-        self.following_gap = 3 # vertices
+        self.following_gap = 5 # vertices
         self.first_pub = False # first pub comes from graphUpdate, subsequent from graphState
     
         self.command_pub = self.create_publisher(
@@ -86,13 +86,34 @@ class TorrentPlanner(Node):
         self.command_pub.publish(begin_goal)
 
     def state_callback(self, graph_state):
+        # get largest vid in the posegraph
+        curr_vtx= self.last_vtx
+        pdb.set_trace()
+
+        for vtx in graph_state.vertices:
+            if vtx.id > self.last_vtx:
+                self.last_vtx = vtx.id
+
+        rid = (self.last_vtx >> 60) & 0xF
+        major_id = (self.last_vtx >> 16) & 0xFFFFFFFFFFF
+        minor_id = self.last_vtx & 0xFFFF
+        print(f"vtx: {self.last_vtx}: robot_id {rid} | major_id {major_id} | minor_id {minor_id}")
+
+        print("pub via graph state")
+        # if at beginning or end of path (within following gap) do nothing
+        if not(minor_id < self.following_gap or (minor_id - curr_vtx & 0xFFFF) < self.following_gap):
+            command_vtx = self.last_vtx - self.following_gap
+            print(f'waypoint to {command_vtx}')
+            self.pack_and_publish_msg(command_vtx)
+
+    def update_callback(self, graph_update):
         # if were in the following gap, keep trying to queue next repeat
         print('state callback')
         if self.last_vtx - self.current_vtx <= 2 * self.following_gap:
             # we are approaching following gap, queue next repeat
 
             # update last_vtx
-            for vtx in graph_state.vertices:
+            for vtx in graph_update.vertices:
                 if vtx.id > self.last_vtx:
                     self.last_vtx = vtx.id
 
@@ -100,22 +121,6 @@ class TorrentPlanner(Node):
             if command_vtx > self.current_vtx:
                 print(f'waypoint to {command_vtx}')
                 self.pack_and_publish_msg(command_vtx)
-
-    def update_callback(self, graph_update):
-        if self.first_pub == True:
-            return
-
-        if graph_update.vertex_from.id - self.following_gap > self.last_vtx:
-            print("pub via graph update")
-            self.last_vtx = graph_update.vertex_from.id
-            minor_id = self.last_vtx & 0xFFFF
-
-            if minor_id > self.following_gap:
-                command_vtx = self.last_vtx - self.following_gap
-            else:
-                command_vtx = self.last_vtx  
-            self.first_pub = True
-            self.pack_and_publish_msg(command_vtx)
 
 def main(args=None):
     rclpy.init(args=args)
