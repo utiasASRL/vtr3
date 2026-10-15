@@ -61,7 +61,7 @@ class TorrentPlanner(Node):
         self.try_advance()        
 
     def try_advance(self):
-        if not self.current_vertex or not self.last_vtx:
+        if not self.current_vtx or not self.last_vtx:
             return # not localized
         command_vtx = self.last_vtx - self.following_gap
         if (command_vtx & 0xFFFF) < self.following_gap or command_vtx <= self.current_vtx:
