@@ -108,7 +108,7 @@ class TorrentPlanner(Node):
         # if were in the following gap, keep trying to queue next repeat
         print('update callback')
         # are we stuck at following gap
-        if self.last_vtx - self.current_vtx <= self.following_gap:
+        if self.last_vtx - self.current_vtx >= self.following_gap:
             # did we get a graph update that advances us
             if graph_update.vertex_to.id > self.last_vtx:
                 self.last_vtx = graph_update.vertex_to.id
