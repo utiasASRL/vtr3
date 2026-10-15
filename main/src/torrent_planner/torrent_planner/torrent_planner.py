@@ -5,8 +5,7 @@ import numpy as np
 import uuid
 import os
 
-from vtr_navigation_msgs.msg import GraphUpdate, GraphState, GraphVertex
-from vtr_navigation_msgs.msg import MissionCommand, GoalHandle
+from vtr_navigation_msgs.msg import GraphUpdate, GraphState, GraphVertex, MissionCommand, GoalHandle, RobotState
 
 import pdb
 
@@ -16,7 +15,8 @@ class TorrentPlanner(Node):
         self.robot_name = os.getenv("ROBOT_NAME")
         print(f"ROBOT_NAME: {self.robot_name}")
         self.last_vtx = 0
-        self.following_gap = 5 # vertices
+        self.current_vtx = 0
+        self.following_gap = 3 # vertices
         self.first_pub = False # first pub comes from graphUpdate, subsequent from graphState
     
         self.command_pub = self.create_publisher(
@@ -35,6 +35,16 @@ class TorrentPlanner(Node):
             f'{self.robot_name}/vtr/graph_update', 
             self.update_callback,
             10)
+        self.robot_state_sub = self.create_subscription(
+            RobotState, 
+            f'{self.robot_name}/vtr/robot_state', 
+            self.robot_state_callback,
+            10)
+
+    def robot_state_callback(self, robot_state):
+        # get id of current vertex were localized to
+        self.current_vtx = robot_state.index
+        print(f"localized to vertex {self.current_vtx}")
 
     def pack_and_publish_msg(self, command_vtx):
         # wrap into a ADD_GOAL mission command
@@ -76,20 +86,15 @@ class TorrentPlanner(Node):
         self.command_pub.publish(begin_goal)
 
     def state_callback(self, graph_state):
-        # get largest vid in the posegraph
-        curr_vtx= self.last_vtx
-        for vtx in graph_state.vertices:
-            if vtx.id > self.last_vtx:
-                self.last_vtx = vtx.id
+        # if were in the following gap, keep trying to queue next repeat
+        if self.last_vtx - self.current_vtx <= 2 * self.following_gap:
+            # we are approaching following gap, queue next repeat
 
-        rid = (self.last_vtx >> 60) & 0xF
-        major_id = (self.last_vtx >> 16) & 0xFFFFFFFFFFF
-        minor_id = self.last_vtx & 0xFFFF
-        print(f"vtx: {self.last_vtx}: robot_id {rid} | major_id {major_id} | minor_id {minor_id}")
+            # update last_vtx
+            for vtx in graph_state.vertices:
+                if vtx.id > self.last_vtx:
+                    self.last_vtx = vtx.id
 
-        print("pub via graph state")
-        # if at beginning or end of path (within following gap) do nothing
-        if not(minor_id < self.following_gap or (minor_id - curr_vtx & 0xFFFF) < self.following_gap):
             command_vtx = self.last_vtx - self.following_gap
             print(f'waypoint to {command_vtx}')
             self.pack_and_publish_msg(command_vtx)
@@ -101,8 +106,6 @@ class TorrentPlanner(Node):
         if graph_update.vertex_from.id - self.following_gap > self.last_vtx:
             print("pub via graph update")
             self.last_vtx = graph_update.vertex_from.id
-            rid = (self.last_vtx >> 60) & 0xF
-            major_id = (self.last_vtx >> 16) & 0xFFFFFFFFFFF
             minor_id = self.last_vtx & 0xFFFF
 
             if minor_id > self.following_gap:
