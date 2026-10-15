@@ -98,23 +98,24 @@ class TorrentPlanner(Node):
         minor_id = self.last_vtx & 0xFFFF
         print(f"vtx: {self.last_vtx}: robot_id {rid} | major_id {major_id} | minor_id {minor_id}")
 
-        print("pub via graph state")
         # if at beginning or end of path (within following gap) do nothing
         if not(minor_id < self.following_gap or (minor_id - curr_vtx & 0xFFFF) < self.following_gap):
             command_vtx = self.last_vtx - self.following_gap
-            print(f'waypoint to {command_vtx}')
+            print(f'pub via graph state waypoint to {command_vtx}')
             self.pack_and_publish_msg(command_vtx)
 
     def update_callback(self, graph_update):
         # if were in the following gap, keep trying to queue next repeat
-        print('state callback')
+        print('update callback')
+        # are we stuck at following gap
         if self.last_vtx - self.current_vtx <= self.following_gap:
-            # we are approaching following gap, queue next repeat
-
-            command_vtx = graph_update.vertex_to.id
-            if command_vtx > self.current_vtx:
-                print(f'waypoint to {command_vtx}')
-                self.pack_and_publish_msg(command_vtx)
+            # did we get a graph update that advances us
+            if graph_update.vertex_to.id > self.last_vtx:
+                self.last_vtx = graph_update.vertex_to.id
+                command_vtx = self.last_vtx - self.following_gap
+                if command_vtx > self.current_vtx:
+                    print(f"pub via graph update waypoint to {command_vtx}")
+                    self.pack_and_publish_msg(command_vtx)
 
 def main(args=None):
     rclpy.init(args=args)
