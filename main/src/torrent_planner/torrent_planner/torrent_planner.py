@@ -18,7 +18,7 @@ class TorrentPlanner(Node):
         self.last_vtx = 0
         self.current_vtx = 0
         self.target_vtx = 0
-        self.following_gap = self.robot_id * 3 # vertices (order is 0:mr_green, 1:prof_plum, 2:col_mustard, 3:mrs_peacock)
+        self.following_gap = int(self.robot_id) * 3 # vertices (order is 0:mr_green, 1:prof_plum, 2:col_mustard, 3:mrs_peacock)
         self.min_step = 5
         self.replan_margin = 3
         self.start_flag = True
