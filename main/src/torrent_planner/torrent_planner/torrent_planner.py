@@ -22,6 +22,9 @@ class TorrentPlanner(Node):
         self.min_step = 5
         self.replan_margin = 3
         self.start_flag = True
+        self.stall_timeout = 5.0 # s without changing vertex before we cancel the repeat
+        self.stall_vtx = None
+        self.stall_since = None
     
         self.command_pub = self.create_publisher(
             MissionCommand,
@@ -79,11 +82,28 @@ class TorrentPlanner(Node):
             if self.target_vtx - self.current_vtx > self.replan_margin:
                 print(f'target: {self.target_vtx}, current: {self.current_vtx}')
                 print('current goal is good')
+                self.check_stall()
                 return # current goal still far
         self.start_flag = True
+        self.stall_vtx = None
         self.target_vtx = command_vtx
         print(f"pub waypoint to {command_vtx} (current {self.current_vtx}, last {self.last_vtx})")
         self.pack_and_publish_msg(command_vtx)
+
+    def check_stall(self):
+        now = self.get_clock().now().nanoseconds * 1e-9
+        if self.current_vtx != self.stall_vtx:
+            self.stall_vtx = self.current_vtx
+            self.stall_since = now
+            return
+        if now - self.stall_since < self.stall_timeout:
+            return
+        print(f'stuck at {self.current_vtx} for {now - self.stall_since:.1f}s, cancelling repeat')
+        # an all-zero (nil) goal id makes the mission server reset and clear its queue
+        cancel = MissionCommand(type=2, goal_handle=GoalHandle(id=[0] * 16)) # CANCEL_GOAL
+        self.command_pub.publish(cancel)
+        self.stall_vtx = None
+        self.start_flag = False # skip the gates so the next call republishes
 
     def pack_and_publish_msg(self, command_vtx):
         # wrap into a ADD_GOAL mission command
