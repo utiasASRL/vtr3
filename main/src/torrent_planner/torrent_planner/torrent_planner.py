@@ -65,9 +65,9 @@ class TorrentPlanner(Node):
         self.try_advance()        
 
     def try_advance(self):
-        if not self.current_vtx or not self.last_vtx:
-            print('not localized')
-            return # not localized
+        # if not self.current_vtx or not self.last_vtx:
+        #     print('not localized')
+        #     return # not localized
         command_vtx = self.last_vtx - self.following_gap
         if (command_vtx & 0xFFFF) < self.following_gap or command_vtx <= self.current_vtx:
             print('not inside following gap')
