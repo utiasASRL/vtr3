@@ -77,6 +77,7 @@ class TorrentPlanner(Node):
                 print('not enough new maps')
                 return # not enough new maps
             if self.target_vtx - self.current_vtx > self.replan_margin:
+                print(f'target: {self.target_vtx}, current: {self.current_vtx}')
                 print('current goal is good')
                 return # current goal still far
         self.start_flag = True
