@@ -13,11 +13,12 @@ class TorrentPlanner(Node):
     def __init__(self):
         super().__init__('torrent_planner')
         self.robot_name = os.getenv("ROBOT_NAME")
+        self.robot_id = os.getenv("ROBOT_ID")
         print(f"ROBOT_NAME: {self.robot_name}")
         self.last_vtx = 0
         self.current_vtx = 0
         self.target_vtx = 0
-        self.following_gap = 5 # vertices
+        self.following_gap = self.robot_id * 3 # vertices (order is 0:mr_green, 1:prof_plum, 2:col_mustard, 3:mrs_peacock)
         self.min_step = 5
         self.replan_margin = 3
         self.start_flag = True
