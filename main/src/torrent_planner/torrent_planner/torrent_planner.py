@@ -127,9 +127,9 @@ class TorrentPlanner(Node):
 
     def pack_and_publish_msg(self, command_vtx):
         # wrap into a ADD_GOAL mission command
-        self.active_goal_id = list(uuid.uuid4().bytes)  # remember so we can cancel it later
+        self.active_goal_id = list(uuid.uuid4().bytes)  # remember so we can cancelist(uuid.uuid4().bytes)l it later
         goal_handle = GoalHandle(
-            id=list(uuid.uuid4().bytes), # UUID
+            id=self.active_goal_id, # UUID
             type=GoalHandle.REPEAT, # repeat
             pause_before=0,
             pause_after=0,
