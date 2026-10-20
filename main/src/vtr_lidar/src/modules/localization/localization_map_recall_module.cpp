@@ -94,11 +94,9 @@ void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
     const auto specified_map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
         config_->map_version, "vtr_lidar_msgs/msg/PointMap");
     if (specified_map_msg == nullptr) {
-      CLOG(ERROR, "lidar.localization_map_recall")
-          << "Could not find map " << config_->map_version << " at vertex "
-          << vid_loc;
-      throw std::runtime_error("Could not find map " + config_->map_version +
-                               " at vertex " + std::to_string(vid_loc));
+      CLOG(WARNING, "lidar.localization_map_recall") << "msg Pointmap " << config_->map_version << " at vertex " << vid_loc << "is nullptr";
+      qdata.loc_map_recall_failed = true;
+      return;
     }
     auto locked_specified_map_msg = specified_map_msg->sharedLocked();
     qdata.submap_loc = std::make_shared<PointMap<PointWithInfo>>(
