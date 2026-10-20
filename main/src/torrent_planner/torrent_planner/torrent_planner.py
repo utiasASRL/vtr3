@@ -59,10 +59,9 @@ class TorrentPlanner(Node):
             10)
 
     def server_state_callback(self, server_state):
-        # the server assigns goal ids itself (ADD_GOAL is sent with a zero id),
-        # so the only valid id to cancel with is the one it reports here
-        self.server_goal_ids = [list(g.id) for g in server_state.goals]
-        cur = list(server_state.current_goal_id)
+        # uint8[16] arrives as numpy; GoalHandle needs plain python ints
+        self.server_goal_ids = [[int(b) for b in g.id] for g in server_state.goals]
+        cur = [int(b) for b in server_state.current_goal_id]
         self.active_goal_id = cur if any(cur) else None
 
     def robot_state_callback(self, robot_state):
