@@ -1,5 +1,18 @@
 /**:
   ros__parameters:
+    pipeline:
+      preprocessing:
+        - conversion
+        - filtering
+        - locate_leader
+    preprocessing:
+      locate_leader:
+        type: lidar.leader_locator
+        maximum_distance: 5.0
+        minimum_distance: 0.0
+        extrinsic: [0.0454,0.0,0.25]
+        intensity_threshold: 10000.0
+        publish: true
     tactic:
       chain:
         alpha: 0.0
@@ -20,13 +33,9 @@
           max_lin_vel: 1.5 # Note: This is set to 2.0 in the driver code currently
           max_ang_vel: 0.46
           max_ang_acc: 0.89
-          ang_alpha: 0.0
-          lin_alpha: 0.0
           max_lin_acc: 0.5
-          vehicle_model: "bicycle"
           wheelbase: 0.65
-          recovery_steps: 15
-          failure_threshold: 5
+          failure_threshold: -1
 
           # Tunable controller parameters(Currently only works for the Bicycle)
           forward:
@@ -36,7 +45,7 @@
             r1: 0.0
             r2: 3.0
             racc1: 4.0
-            racc2: 10.0
+            racc2: 5.0
           reverse:
             q_lat: 10.0
             q_lon: 3.0
@@ -48,8 +57,13 @@
       bicycle_mpc_follower:
         type: bicycle_mpc_follower
         control_period: 100
-        distance_margin: 50.0
-        waypoint_selection: arclength
+        distance_margin: 0.35
+        waypoint_selection: reflector
+        waypoint_source: leader_pred
+        longitudinal_control:
+          kp: 2.0
+          ki: 0.5
+          kd: 0.0
         speed_scheduler:
           planar_curv_weight: 0.0
           profile_curv_weight: 1.0 
@@ -63,13 +77,10 @@
           max_lin_vel: 1.5 # Note: This is set to 2.0 in the driver code currently
           max_ang_vel: 0.46
           max_ang_acc: 0.89
-          ang_alpha: 0.0
-          lin_alpha: 0.0
           max_lin_acc: 0.5
-          vehicle_model: "bicycle"
           wheelbase: 0.65
           recovery_steps: 15
-          failure_threshold: 5
+          failure_threshold: -1
 
           # Tunable controller parameters(Currently only works for the Bicycle)
           forward:
@@ -117,6 +128,8 @@
       #- lidar.localization_icp
       #- lidar.intra_exp_merging
       #- lidar.inter_exp_merging
+      - lidar.leader_locator
+
 
 /prof_plum/vtr/navigator:
   ros__parameters:
@@ -124,31 +137,31 @@
     bicycle_mpc_follower:
       leader_namespace:
         /mr_green 
-      follow_distance: 7.5
+      follow_distance: 1.5
 
 /mr_green/vtr/navigator:
   ros__parameters:
    path_planning:
     bicycle_mpc_follower:
       leader_namespace:
-        /col_mustard 
-      follow_distance: 2.5
+        /prof_plum 
+      follow_distance: 1.5
 
-/col_mustard/vtr/navigator:
-  ros__parameters:
-   path_planning:
-    bicycle_mpc_follower:
-      leader_namespace:
-        /mr_green
-      follow_distance: 2.5
+# /col_mustard/vtr/navigator:
+#   ros__parameters:
+#    path_planning:
+#     bicycle_mpc_follower:
+#       leader_namespace:
+#         /mr_green
+#       follow_distance: 2.5
 
-/mrs_peacock/vtr/navigator:
-  ros__parameters:
-   path_planning:
-    bicycle_mpc_follower:
-      leader_namespace:
-        /mr_green
-      follow_distance: 5.0
+# /mrs_peacock/vtr/navigator:
+#   ros__parameters:
+#    path_planning:
+#     bicycle_mpc_follower:
+#       leader_namespace:
+#         /mr_green
+#       follow_distance: 5.0
 
 /vtr/convoy_planning_node:
   ros__parameters:
@@ -158,11 +171,11 @@
     prof_plum:
       leader_mpc: bicycle_mpc
       follower_mpc: bicycle_mpc_follower
-    col_mustard:
-      leader_mpc: bicycle_mpc
-      follower_mpc: bicycle_mpc_follower
-    mrs_peacock:
-      leader_mpc: bicycle_mpc
-      follower_mpc: bicycle_mpc_follower
+    # col_mustard:
+    #   leader_mpc: bicycle_mpc
+    #   follower_mpc: bicycle_mpc_follower
+    # mrs_peacock:
+    #   leader_mpc: bicycle_mpc
+    #   follower_mpc: bicycle_mpc_follower
 
     

@@ -30,7 +30,6 @@ namespace vtr::path_planning {
 void BicycleMPCPathTrackerFollower::Config::loadConfig(BicycleMPCPathTrackerFollower::Config::Ptr config, 
 		           const rclcpp::Node::SharedPtr& node,
                            const std::string& prefix) {
-
   // MPC Configs:
   // Follower params
   config->leader_namespace = node->declare_parameter<std::string>(prefix + ".leader_namespace", config->leader_namespace);
@@ -40,8 +39,14 @@ void BicycleMPCPathTrackerFollower::Config::loadConfig(BicycleMPCPathTrackerFoll
   config->f_q_dist = node->declare_parameter<double>(prefix + ".mpc.forward.q_dist", config->f_q_dist);
   config->r_q_dist = node->declare_parameter<double>(prefix + ".mpc.reverse.q_dist", config->r_q_dist);
 
+  // Longitudinal control for PID
+  config->kp = node->declare_parameter<double>(prefix + ".longitudinal_control.kp", config->kp);
+  config->ki = node->declare_parameter<double>(prefix + ".longitudinal_control.ki", config->ki);
+  config->kd = node->declare_parameter<double>(prefix + ".longitudinal_control.kd", config->kd);
+
   // Waypoint selection
   config->waypoint_selection = node->declare_parameter<std::string>(prefix + ".waypoint_selection", config->waypoint_selection);
+  config->waypoint_source    = node->declare_parameter<std::string>(prefix + ".waypoint_source", config->waypoint_source);
 }
 
 // Configure the class as a ROS2 node, get configurations from the ros parameter server
@@ -57,6 +62,9 @@ auto BicycleMPCPathTrackerFollower::Config::fromROS(const rclcpp::Node::SharedPt
   CLOG(DEBUG, "cbit.control") << "Bicycle Tracker MPC reverse costs: "
       << ", q_dist: " << config->r_q_dist;
 
+  CLOG(DEBUG, "cbit.control") << "Longitudinal control params: kP: " << config->kp
+      << ", kI: " << config->ki << ", kD: " << config->kd;
+
   return config;
 }
 
@@ -70,26 +78,39 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   vis_ = std::make_shared<VisualizationUtils>(robot_state->node.ptr());
 
   CLOG(DEBUG, "mpc.follower") << "Choosing " << config_->waypoint_selection << " option for waypoint selection!";
+  CLOG(DEBUG, "mpc.follower") << "Choosing " << config_->waypoint_source << " option for source of waypoint selection!";
 
   using std::placeholders::_1;
   const auto leader_path_topic = config_->leader_namespace + "/vtr/mpc_prediction";
   const auto leader_graph_topic = config_->leader_namespace + "/vtr/graph_state_srv";
+  const auto leader_ref_topic = config->leader_namespace + "/vtr/stamped_reference_poses";
   const auto leader_route_topic = config_->leader_namespace + "/vtr/following_route";
   const auto leader_route_service = config_->leader_namespace + "/vtr/following_route_srv";
-  CLOG(INFO, "mpc.follower") << "Listening for MPC rollouts on " << leader_path_topic;
+  
+  
   CLOG(INFO, "mpc.follower") << "Requesting graph info from " << leader_graph_topic;
   CLOG(INFO, "mpc.follower") << "Listening for route on " << leader_route_topic;
+  
   CLOG(INFO, "mpc.follower") << "Target separation: " << config->following_offset;
   CLOG(INFO, "mpc.follower") << "Robot's wheelbase: " << config->wheelbase << "m";
 
-  leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
+
+  if (config->waypoint_source == "leader_ref"){
+    leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_ref_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
+    CLOG(INFO, "mpc.follower") << "Listening for reference poses on " << leader_ref_topic;
+  }
+  else if (config->waypoint_source == "leader_pred"){
+    leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
+    CLOG(INFO, "mpc.follower") << "Listening for MPC rollouts on " << leader_path_topic;
+  }
+  else{
+    CLOG(WARNING, "mpc.follow") << "Invalid source of references " << config->waypoint_source << " selected. Controller will not run.";
+  }
 
   leaderRouteSrv_ = robot_state->node->create_client<FollowingRouteSrv>(leader_route_service);
 
-  leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(leader_graph_topic);
-  followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
-
   estimatedDistancePub_ = robot_state->node->create_publisher<FloatMsg>("estimated_leader_distance", 10);
+  leaderDistanceSub_ = robot_state->node->create_subscription<FloatMsg>("leader_distance", rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderDist, this, _1));
 }
 
 BicycleMPCPathTrackerFollower::~BicycleMPCPathTrackerFollower() {}
@@ -129,17 +150,18 @@ bool BicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, cons
     return false;
   }
 
-  if (recentLeaderPath_ == nullptr) {
+  if (leaderPathInterp_ == nullptr) {
     CLOG_EVERY_N(1, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
     return false;
   }
 
-  const auto leader_path_time = rclcpp::Time(recentLeaderPath_->header.stamp).nanoseconds();
+  auto leader_path_time = rclcpp::Time(recentLeaderPath_->header.stamp).nanoseconds();
+  
   const auto delta_t = curr_time - leader_path_time;
   if (delta_t > 1e9) {
-    CLOG_EVERY_N(1, WARNING,"cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping\n Delay: "
-           << delta_t / 1e9;
-    return false;
+  CLOG_EVERY_N(1, WARNING,"cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping\n Delay: "
+         << delta_t / 1e9;
+  return false;
   }
 
   return true;
@@ -169,7 +191,29 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   estimatedDistancePub_->publish(internal_dist);
 
   mpcConfig->VF = abs(leader_vel_(0));
+  if (config_->waypoint_selection == "reflector" || config_->waypoint_selection == "estimated_dist") {
+    const float distance = (config_->waypoint_selection == "reflector" && recentLeaderDist_ != nullptr) ? recentLeaderDist_->data : internal_dist.data;
+    const double error = distance - config_->following_offset;
+    if (abs(chain->leaf_velocity()(0)) > 0.05)
+      errorIntegrator += error * config_->control_period / 1000.0;
+    else
+      errorIntegrator = 0;
 
+    mpcConfig->VF = config_->kp * error + config_->ki * errorIntegrator + config_->kd * (error - lastError_) / ((float)config_->control_period / 1000.0);
+    if (abs(mpcConfig->VF) > config_->max_lin_vel)
+      mpcConfig->VF = sgn(mpcConfig->VF) * config_->max_lin_vel;
+    
+    lastError_ = error;
+    CLOG(DEBUG, "mpc.follower.pid") << "Requested forward speed " << mpcConfig->VF;
+
+    //TODO revert to max and min
+    mpcConfig->vel_max = {mpcConfig->VF, config_->max_ang_vel};
+    mpcConfig->vel_min = {mpcConfig->VF, -config_->max_ang_vel};
+    follower_mpc_config->lin_acc_max = 1000;
+    follower_mpc_config->distance_margin = 1000;
+    follower_mpc_config->Q_dist = 0;
+  }
+  
   for (int i = 0; i < mpcConfig->N; i++){
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig->DT * 1e9);
     follower_mpc_config->leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
@@ -230,21 +274,21 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
       CLOG(DEBUG, "cbit.control") << "False end of path. Setting cost of EoP poses to: " << weighting;
     }
     
-    mpcConfig->cost_weights.push_back(weighting);
+    if (config_->waypoint_selection != "reflector" && config_->waypoint_selection != "estimated_dist" )
+      mpcConfig->cost_weights.push_back(weighting);
     last_pose = curr_pose;
 
   }
   vis_->publishReferencePoses(referenceInfo.poses, curr_time);
-  leader_world_poses.insert(leader_world_poses.begin(), T_w_l );
+  leader_world_poses.insert(leader_world_poses.begin(), T_w_l);
   vis_->publishLeaderRollout(leader_world_poses, curr_time, mpcConfig->DT);
 
   mpcConfig->eop_index = end_ind;
   mpcConfig->up_barrier_q  = referenceInfo.barrier_q_max;
   mpcConfig->low_barrier_q = referenceInfo.barrier_q_min;
 
-  //Temporary to maintain functionality. TODO remove
-  mpcConfig->up_barrier_q.clear();
-  mpcConfig->low_barrier_q.clear();
+  CLOG(INFO, "mpc.follower") << referenceInfo.barrier_q_max;
+
 }
 
 std::map<std::string, casadi::DM> BicycleMPCPathTrackerFollower::callSolver(CasadiMPC::Config::Ptr config) {
@@ -285,8 +329,8 @@ void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) 
   leaderPathInterp_ = std::make_shared<const PathInterpolator>(path);
 }
 
-void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture Future){
-  auto result = Future.get();
+void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture future){
+  auto result = future.get();
   auto route = result->following_route;
   if (robot_state_->chain.valid() && robot_state_->chain->sequence().size() > 0 && route.ids.size() > 0 && route.ids.front() != leader_root_) { 
     leader_root_ = route.ids.front();
@@ -308,6 +352,10 @@ void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<Fol
     CLOG(WARNING, "mpc.follower") << "Leader route received but robot state chain is not valid or empty. Cannot update leader root.";
     hasRequestedLeaderRoute_ = false;
   }
+}
+
+void BicycleMPCPathTrackerFollower::onLeaderDist(const FloatMsg::SharedPtr distance) {
+  recentLeaderDist_ = distance;
 }
 
 }  // namespace vtr::path_planning

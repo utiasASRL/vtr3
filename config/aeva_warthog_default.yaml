@@ -363,8 +363,6 @@
         max_lin_vel: 1.5
         max_ang_vel: 0.5
         max_ang_acc: 5.0
-        ang_alpha: 0.811
-        lin_alpha: 0.0
         q_x: 10.0
         q_y: 10.0
         q_th: 5.0
