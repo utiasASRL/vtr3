@@ -4,6 +4,7 @@ from rclpy.node import Node
 import numpy as np
 import uuid
 import os
+import time
 
 from vtr_navigation_msgs.msg import GraphUpdate, GraphState, GraphVertex, MissionCommand, GoalHandle, RobotState
 
@@ -22,10 +23,13 @@ class TorrentPlanner(Node):
         self.min_step = 5
         self.replan_margin = 3
         self.start_flag = True
-        self.stall_timeout = 5.0 # s without changing vertex before we cancel the repeat
-        self.stall_vtx = None
-        self.stall_since = None
-    
+
+        # replanning
+        self.stall_timeout = 5 # seconds
+        self.last_progress_time = self.get_clock().now()
+        self.active_goal_id = None # UUID of last goal so we can catch it
+        self.stall_timer = self.create_timer(1.0, self.try_advance)
+
         self.command_pub = self.create_publisher(
             MissionCommand,
             f'/{self.robot_name}/vtr/mission_command',
@@ -50,6 +54,8 @@ class TorrentPlanner(Node):
 
     def robot_state_callback(self, robot_state):
         # get id of current vertex were localized to
+        if robot_state.index != self.current_vtx:
+            self.last_progress_time = self.get_clock().now() # we moved, reset clock
         self.current_vtx = robot_state.index
         self.try_advance()        
 
@@ -67,49 +73,64 @@ class TorrentPlanner(Node):
         self.last_vtx = max(self.last_vtx, graph_update.vertex_to.id)
         self.try_advance()        
 
+    def seconds_since_progress(self):
+        return (self.get_clock().now() - self.last_progress_time).nanoseconds * 1e-9
+
     def try_advance(self):
-        # if not self.current_vtx or not self.last_vtx:
-        #     print('not localized')
-        #     return # not localized
         command_vtx = self.last_vtx - self.following_gap
         if (command_vtx & 0xFFFF) < self.following_gap or command_vtx <= self.current_vtx:
             print('not inside following gap')
             return # near start, or inside following gap; wait
         if self.start_flag:
-            if command_vtx - self.target_vtx < self.min_step:
-                print('not enough new maps')
-                return # not enough new maps
-            if self.target_vtx - self.current_vtx > self.replan_margin:
-                print(f'target: {self.target_vtx}, current: {self.current_vtx}')
-                print('current goal is good')
-                self.check_stall()
-                return # current goal still far
+            stalled = (self.active_goal_id is not None
+                and self.target_vtx > self.current_vtx
+                and self.seconds_since_progress() > self.stall_timeout)
+            if stalled:
+                print(f'stalled at {self.current_vtx} for {self.seconds_since_progress():.1f}s '
+                      f'(target {self.target_vtx}); cancelling and replanning')
+                self.cancel_current_goal()
+            else:
+                if command_vtx - self.target_vtx < self.min_step:
+                    print('not enough new maps')
+                    return # not enough new maps
+                if self.target_vtx - self.current_vtx > self.replan_margin:
+                    print(f'target: {self.target_vtx}, current: {self.current_vtx}')
+                    print('current goal is good')
+                    return # current goal still far
         self.start_flag = True
-        self.stall_vtx = None
         self.target_vtx = command_vtx
+        self.last_progress_time = self.get_clock().now()
         print(f"pub waypoint to {command_vtx} (current {self.current_vtx}, last {self.last_vtx})")
         self.pack_and_publish_msg(command_vtx)
 
-    def check_stall(self):
-        now = self.get_clock().now().nanoseconds * 1e-9
-        if self.current_vtx != self.stall_vtx:
-            self.stall_vtx = self.current_vtx
-            self.stall_since = now
+    def cancel_current_goal(self):
+        if self.active_goal_id is None:
             return
-        if now - self.stall_since < self.stall_timeout:
-            return
-        print(f'stuck at {self.current_vtx} for {now - self.stall_since:.1f}s, cancelling repeat')
-        # an all-zero (nil) goal id makes the mission server reset and clear its queue
-        cancel = MissionCommand(type=2, goal_handle=GoalHandle(id=[0] * 16)) # CANCEL_GOAL
-        self.command_pub.publish(cancel)
-        self.stall_vtx = None
-        self.start_flag = False # skip the gates so the next call republishes
+        goal_handle = GoalHandle(
+            id=self.active_goal_id, # UUID
+            type=GoalHandle.REPEAT, # repeat
+            pause_before=0,
+            pause_after=0,
+            waypoints=[self.target_vtx],
+            controller_name=''
+        )
+
+        cancel_goal = MissionCommand(
+            type=MissionCommand.CANCEL_GOAL, # add goal
+            pause=False,
+            goal_handle=goal_handle,
+            vertex=0,
+        )
+        self.command_pub.publish(cancel_goal)
+        self.active_goal_id = None
+
 
     def pack_and_publish_msg(self, command_vtx):
         # wrap into a ADD_GOAL mission command
+        self.active_goal_id = list(uuid.uuid4().bytes)  # remember so we can cancel it later
         goal_handle = GoalHandle(
             id=list(uuid.uuid4().bytes), # UUID
-            type=2, # repeat
+            type=GoalHandle.REPEAT, # repeat
             pause_before=0,
             pause_after=0,
             waypoints=[command_vtx],
@@ -117,7 +138,7 @@ class TorrentPlanner(Node):
         )
 
         add_goal = MissionCommand(
-            type=1, # add goal
+            type=MissionCommand.ADD_GOAL, # add goal
             pause=False,
             goal_handle=goal_handle,
             vertex=command_vtx,
@@ -128,7 +149,7 @@ class TorrentPlanner(Node):
         # wrap into a BEGIN_GOAL mission command
         goal_handle = GoalHandle(
             id=list(uuid.uuid4().bytes), # UUID
-            type=0, # repeat
+            type=GoalHandle.IDLE, # repeat
             pause_before=0,
             pause_after=0,
             # waypoints=[self.last_vtx], # dont set waypoints
@@ -136,7 +157,7 @@ class TorrentPlanner(Node):
         )
 
         begin_goal = MissionCommand(
-            type=3, # add goal
+            type=MissionCommand.BEGIN_GOALS, # add goal
             pause=False,
             goal_handle=goal_handle,
             vertex=0,
