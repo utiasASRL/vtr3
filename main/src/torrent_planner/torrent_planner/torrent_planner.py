@@ -108,7 +108,7 @@ class TorrentPlanner(Node):
             return
         goal_handle = GoalHandle(
             id=self.active_goal_id, # UUID
-            type=GoalHandle.REPEAT, # repeat
+            type=GoalHandle.IDLE, # repeat
             pause_before=0,
             pause_after=0,
             waypoints=[self.target_vtx],
