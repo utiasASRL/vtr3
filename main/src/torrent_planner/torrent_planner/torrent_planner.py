@@ -6,7 +6,7 @@ import uuid
 import os
 import time
 
-from vtr_navigation_msgs.msg import GraphUpdate, GraphState, GraphVertex, MissionCommand, GoalHandle, RobotState
+from vtr_navigation_msgs.msg import GraphUpdate, GraphState, GraphVertex, MissionCommand, GoalHandle, RobotState, ServerState
 
 import pdb
 
@@ -28,6 +28,7 @@ class TorrentPlanner(Node):
         self.stall_timeout = 5 # seconds
         self.last_progress_time = self.get_clock().now()
         self.active_goal_id = None # UUID of last goal so we can catch it
+        self.server_goal_ids = []   # all goals the server currently holds
         self.stall_timer = self.create_timer(1.0, self.try_advance)
 
         self.command_pub = self.create_publisher(
@@ -51,6 +52,18 @@ class TorrentPlanner(Node):
             f'{self.robot_name}/vtr/robot_state', 
             self.robot_state_callback,
             10)
+        self.server_state_sub = self.create_subscription(
+            ServerState,
+            f'{self.robot_name}/vtr/server_state',
+            self.server_state_callback,
+            10)
+
+    def server_state_callback(self, server_state):
+        # the server assigns goal ids itself (ADD_GOAL is sent with a zero id),
+        # so the only valid id to cancel with is the one it reports here
+        self.server_goal_ids = [list(g.id) for g in server_state.goals]
+        cur = list(server_state.current_goal_id)
+        self.active_goal_id = cur if any(cur) else None
 
     def robot_state_callback(self, robot_state):
         # get id of current vertex were localized to
@@ -104,30 +117,33 @@ class TorrentPlanner(Node):
         self.pack_and_publish_msg(command_vtx)
 
     def cancel_current_goal(self):
-        if self.active_goal_id is None:
+        # cancel EVERY goal
+        ids = self.server_goal_ids or ([self.active_goal_id] if self.active_goal_id else [])
+        if not ids:
+            print('no searver goal id known yet, nothing to cancel')
             return
-        goal_handle = GoalHandle(
-            id=self.active_goal_id, # UUID
-            type=GoalHandle.REPEAT, # repeat
-            pause_before=0,
-            pause_after=0,
-            waypoints=[],
-            controller_name=''
-        )
 
-        cancel_goal = MissionCommand(
-            type=MissionCommand.CANCEL_GOAL, # add goal
-            pause=False,
-            goal_handle=goal_handle,
-            vertex=0,
-        )
-        self.command_pub.publish(cancel_goal)
+        for gid in ids:
+            goal_handle = GoalHandle(
+                id=gid, # server-assigned id
+                type=0,
+                pause_before=0,
+                pause_after=0,
+                waypoints=[],
+                controller_name=''
+            )
+            cancel_goal = MissionCommand(
+                type=2, # cancel goal
+                pause=False,
+                goal_handle=goal_handle,
+                vertex=0,
+            )
+            self.command_pub.publish(cancel_goal)
         self.active_goal_id = None
-
+        self.server_goal_ids = []
 
     def pack_and_publish_msg(self, command_vtx):
         # wrap into a ADD_GOAL mission command
-        self.active_goal_id = list(uuid.uuid4().bytes)  # remember so we can cancelist(uuid.uuid4().bytes)l it later
         goal_handle = GoalHandle(
             id=self.active_goal_id, # UUID
             type=GoalHandle.REPEAT, # repeat
