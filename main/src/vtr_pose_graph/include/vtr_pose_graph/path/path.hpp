@@ -144,6 +144,7 @@ bool Path<GraphT>::verifySequence() {
 template <class GraphT>
 void Path<GraphT>::expand() {
   LockGuard lock(mutex_);
+  if (sequence_.empty()) return;
   expand(sequence_.size() - 1);
 }
 
@@ -256,7 +257,7 @@ size_t Path<GraphT>::size() const {
 template <class GraphT>
 double Path<GraphT>::length() const {
   LockGuard lock(mutex_);
-  return dist(sequence_.size() - 1);
+  return sequence_.empty() ? 0 : dist(sequence_.size() - 1);
 }
 
 template <class GraphT>
@@ -265,6 +266,8 @@ void Path<GraphT>::initSequence() {
   poses_.reserve(sequence_.size());
   distances_.clear();
   distances_.reserve(sequence_.size());
+  p_vals_.clear();
+  p_vals_.reserve(sequence_.size());
 }
 
 /** \brief An iterator to a specified id along the path */

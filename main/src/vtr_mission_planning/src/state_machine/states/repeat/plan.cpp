@@ -39,17 +39,26 @@ void Plan::processGoals(StateMachine &state_machine, const Event &event) {
   }
 
   switch (event.action) {
-    case Action::Continue:
-      if (!getTactic(state_machine)->getPersistentLoc().v.isValid()) {
+    case Action::Continue: {
+      const auto tactic = getTactic(state_machine);
+      const auto persistent_loc = tactic->getPersistentLoc(); 
+      if (!persistent_loc.v.isValid()) {
         // If we are lost, re-do topological localization
         const auto tmp = std::make_shared<TopologicalLocalize>();
         tmp->setWaypoints(waypoints_, waypoint_seq_);
         return Parent::processGoals(state_machine,
                                     Event(Action::AppendGoal, tmp));
-      } else {
-        // If we are localized, then continue on to repeat
-        return Parent::processGoals(state_machine, Event(Action::EndGoal));
+      } 
+      path_ = getRoutePlanner(state_machine)->path(persistent_loc.v, waypoints_, waypoint_seq_);
+      if (path_.empty()) {
+        CLOG(WARNING, "mission.state_machine") 
+          << "robot is already at the repeat goal (" << persistent_loc.v
+          << "); nothing to repeat.";
+        return Parent::processGoals(state_machine, Event(Action::Reset));
       }
+      // If we are localized, then continue on to repeat
+      return Parent::processGoals(state_machine, Event(Action::EndGoal));
+    }
     default:
       return Parent::processGoals(state_machine, event);
   }
@@ -71,9 +80,7 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
         << "Current vertex: " << persistent_loc.v
         << ", waypoints: " << waypoints_;
 
-    auto path =
-        route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
-    tactic->setPath(path, 0, persistent_loc.T, true);
+    tactic->setPath(path_, 0, persistent_loc.T, true);
   }
 
   // Recursively call up the inheritance chain until we get to the least common
