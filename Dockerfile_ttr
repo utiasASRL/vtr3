@@ -33,7 +33,7 @@ RUN echo "deb [trusted=yes] https://download.eclipse.org/zenoh/debian-repo /" | 
     chmod +x /usr/bin/systemctl && \
     apt-get install -y zenohd
 
-RUN pip3 install pynacl eclipse-zenoh msgpack zenoh-cli pprintpp pandas  zstandard -i https://pypi.org/simple/
+RUN pip3 install eclipse-zenoh msgpack zenoh-cli pprintpp pandas  zstandard -i https://pypi.org/simple/
 RUN pip3 install --upgrade matplotlib -i https://pypi.org/simple/
 
 WORKDIR $HOMEDIR
@@ -49,4 +49,5 @@ RUN echo "alias build_ui='npm --prefix ${VTRUI} install ${VTRUI}; npm --prefix $
 RUN echo "alias build_vtr='source /opt/ros/humble/setup.bash; cd ${VTRSRC}/main; colcon build --symlink-install'" >> ${HOMEDIR}/.bashrc
 RUN echo "source /opt/ros/humble/setup.bash; export RMW_IMPLEMENTATION=rmw_zenoh_cpp" >> ${HOMEDIR}/.bashrc
 
+# docker build -t vtr3_ttr   --build-arg USERID=$(id -u)   --build-arg GROUPID=$(id -g)   --build-arg USERNAME=$(whoami)   --build-arg HOMEDIR=${HOME}   -f Dockerfile_ttr --build-arg CUDA_ARCH="87" .
 # docker run -it --name vtr3_ttr   --privileged --network=host -p 5200-5204:5200-5204 --ipc=host   -e USER_ID=$(id -u) -e GROUP_ID=$(id -g) -e USER_NAME=$(id -un) -e RMW_IMPLEMENTATION=rmw_zenoh_cpp -e ROBOT_NAME=$ROBOT_NAME -e ROBOT_ID=$ROBOT_ID -e DISPLAY=$DISPLAY   -v /tmp/.X11-unix:/tmp/.X11-unix   -v ${VTRROOT}:${VTRROOT}:rw   -v /dev:/dev  vtr3_ttr
