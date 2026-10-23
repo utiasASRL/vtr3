@@ -217,7 +217,7 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   CLOG(DEBUG, "navigation.graph_map_server")
       << "Updated graph map info: <" << map_info.lng << ", " << map_info.lat
       << ", " << map_info.theta << ", " << map_info.scale << ">";
-  buildAndPublishGraphState();
+  // buildAndPublishGraphState();
 }
 
 float GraphMapServer::haversineDist(float lat1, float lat2, float lon1, float lon2) {
