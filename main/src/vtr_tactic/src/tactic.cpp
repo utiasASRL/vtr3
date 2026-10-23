@@ -210,7 +210,7 @@ bool Tactic::routeCompleted() const {
 
 bool Tactic::input_(const QueryCache::Ptr&) {
   auto now = std::chrono::steady_clock::now();
-  if (now - last_load_live_ >= std::chrono::milliseconds(2000)) {
+  if (now - last_load_live_ >= std::chrono::milliseconds(5000)) {
     last_load_live_ = now;
     graph_->loadLive();
   }
