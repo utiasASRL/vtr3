@@ -59,7 +59,7 @@ void MetricLocalize::onExit(StateMachine &state_machine,
   // leaves to root
   if (localization_required_) {
     const auto tactic = getTactic(state_machine);
-    tactic->connectToTrunk(true);
+    tactic->connectToTrunk(pose_graph::EdgeMode::Manual);
     tactic->setPath(PathType(), 0, tactic::EdgeTransform(true), false);
   }
 

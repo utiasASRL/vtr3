@@ -276,9 +276,21 @@ void MetadataIo::write_metadata(const std::string & uri, const BagMetadata & met
 
 BagMetadata MetadataIo::read_metadata(const std::string & uri)
 {
+  const std::string metadata_file = get_metadata_file_name(uri);
   try {
-    YAML::Node yaml_file = YAML::LoadFile(get_metadata_file_name(uri));
-    auto metadata = yaml_file["rosbag2_bagfile_information"].as<BagMetadata>();
+    YAML::Node yaml_file = YAML::LoadFile(metadata_file);
+    
+    if (!yaml_file.IsDefined() || !yaml_file.IsMap()){
+      throw std::runtime_error("Metadata file is empty or not a valid YAML map: " + metadata_file);
+    }
+
+    YAML::Node info_node = yaml_file["rosbag2_bagfile_information"];
+    if (!info_node.IsDefined() || !info_node.IsMap()){
+      throw std::runtime_error("Missing or invalid 'rosbag2_bagfile_information' node in " + metadata_file);
+    }
+
+    auto metadata = info_node.as<BagMetadata>();
+
     rcutils_allocator_t allocator = rcutils_get_default_allocator();
     if (RCUTILS_RET_OK !=
       rcutils_calculate_directory_size(uri.c_str(), &metadata.bag_size, allocator))

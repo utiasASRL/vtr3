@@ -32,12 +32,30 @@ template <class V, class E>
 Graph<V, E>::Graph(const CallbackPtr& callback) : callback_(callback) {}
 
 template <class V, class E>
-BaseIdType Graph<V, E>::addRun() {
+uint8_t Graph<V,E>::getRobotIdFromEnv() {
+  const char* env = std::getenv("ROBOT_ID");
+  if (!env) {
+    CLOG(ERROR, "pose_graph") << "ROBOT_ID environment variable not set";
+    throw std::runtime_error("ROBOT_ID environment variable not set");
+  }
+  int id = std::stoi(env);
+  if (id < 0 || id > 15) {
+    CLOG(ERROR, "pose_graph") << "ROBOT_ID out of range (0,15): " << id;
+    throw std::range_error("ROBOT_ID is out of range");
+  }
+  return static_cast<uint8_t>(id);
+}
+
+template <class V, class E>
+MajorIdType Graph<V, E>::addRun() {
   ChangeGuard change_guard(change_mutex_);
   std::unique_lock lock(mutex_);
-
-  if ((curr_major_id_ == InvalidBaseId) || (curr_minor_id_ != InvalidBaseId)) {
-    ++curr_major_id_;
+  uint8_t robot_id = getRobotIdFromEnv();
+  CLOG(INFO, "pose_graph") << "ROBOT_ID is " << robot_id;
+  if ((curr_major_id_ == InvalidMajorId) || (curr_minor_id_ != InvalidBaseId)) {
+    do { 
+      curr_major_id_ = (rng_() & 0x00000FFFFFFFFFFFull) | (static_cast<MajorIdType>(robot_id) << 44);
+    } while (curr_major_id_ == InvalidMajorId);
     curr_minor_id_ = InvalidBaseId;
   } else {
     CLOG(WARNING, "pose_graph")
@@ -45,7 +63,6 @@ BaseIdType Graph<V, E>::addRun() {
   }
 
   CLOG(DEBUG, "pose_graph") << "Added run " << curr_major_id_;
-
   return curr_major_id_;
 }
 
@@ -55,12 +72,13 @@ auto Graph<V, E>::addVertex(Args&&... args) -> VertexPtr {
   ChangeGuard change_guard(change_mutex_);
   std::unique_lock lock(mutex_);
 
-  if (curr_major_id_ == InvalidBaseId) {
+  if (curr_major_id_ == InvalidMajorId) {
     CLOG(ERROR, "pose_graph") << "No run added";
     throw std::runtime_error("No run added");
   }
 
-  VertexId vid(curr_major_id_, ++curr_minor_id_);
+  curr_minor_id_ = (curr_minor_id_ == InvalidBaseId) ? 0 : curr_minor_id_ + 1;
+  VertexId vid(curr_major_id_, curr_minor_id_);
   graph_.addVertex(vid);
   auto vertex = Vertex::MakeShared(vid, std::forward<Args>(args)...);
   vertices_.insert({vid, vertex});
@@ -76,7 +94,7 @@ auto Graph<V, E>::addVertex(Args&&... args) -> VertexPtr {
 template <class V, class E>
 template <class... Args>
 auto Graph<V, E>::addEdge(const VertexId& from, const VertexId& to,
-                          const EdgeType& type, const bool manual,
+                          const EdgeType& type, const EdgeMode& mode,
                           const EdgeTransform& T_to_from, Args&&... args)
     -> EdgePtr {
   ChangeGuard change_guard(change_mutex_);
@@ -88,19 +106,9 @@ auto Graph<V, E>::addEdge(const VertexId& from, const VertexId& to,
     throw std::range_error("Adding edge between non-existent vertices");
   }
 
-  if (from.majorId() < to.majorId()) {
-    CLOG(ERROR, "pose_graph")
-        << "Cannot add edge from " << from << " to " << to
-        << " since the major id of the from vertex is smaller than the to "
-           "vertex";
-    throw std::invalid_argument(
-        "Spatial edges may only be added from higher run numbers to lower "
-        "ones");
-  }
-
   EdgeId eid(from, to);
   graph_.addEdge(eid);
-  auto edge = Edge::MakeShared(from, to, type, manual, T_to_from,
+  auto edge = Edge::MakeShared(from, to, type, mode, T_to_from,
                                std::forward<Args>(args)...);
   edges_.insert({eid, edge});
 

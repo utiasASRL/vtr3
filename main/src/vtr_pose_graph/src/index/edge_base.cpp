@@ -25,29 +25,20 @@ namespace pose_graph {
 
 EdgeBase::Ptr EdgeBase::MakeShared(const VertexId& from_id,
                                    const VertexId& to_id, const EdgeType& type,
-                                   const bool manual,
+                                   const EdgeMode& mode,
                                    const EdgeTransform& T_to_from) {
-  return std::make_shared<EdgeBase>(from_id, to_id, type, manual, T_to_from);
+  return std::make_shared<EdgeBase>(from_id, to_id, type, mode, T_to_from);
 }
 
 EdgeBase::EdgeBase(const VertexId& from_id, const VertexId& to_id,
-                   const EdgeType& type, const bool manual,
+                   const EdgeType& type, const EdgeMode& mode,
                    const EdgeTransform& T_to_from)
     : id_(from_id, to_id),
       from_(from_id),
       to_(to_id),
       type_(type),
-      manual_(manual),
+      mode_(mode),
       T_to_from_(T_to_from) {
-  if (from_.majorId() < to_.majorId()) {
-    CLOG(ERROR, "pose_graph")
-        << "Cannot create edge from " << from_ << " to " << to_
-        << " since the major id of the from vertex is smaller than the to "
-           "vertex";
-    throw std::invalid_argument(
-        "Spatial edges may only be added from higher run numbers to lower "
-        "ones");
-  }
 }
 
 EdgeId EdgeBase::id() const { return id_; }
@@ -55,8 +46,9 @@ VertexId EdgeBase::from() const { return from_; }
 VertexId EdgeBase::to() const { return to_; }
 EdgeType EdgeBase::type() const { return type_; }
 size_t EdgeBase::idx() const { return (size_t)type_; }
-bool EdgeBase::isManual() const { return manual_; }
-bool EdgeBase::isAutonomous() const { return !manual_; }
+bool EdgeBase::isManual() const { return mode_ == EdgeMode::Manual; }
+bool EdgeBase::isAutonomous() const { return mode_ == EdgeMode::Autonomous; }
+bool EdgeBase::isUnknown() const { return mode_ == EdgeMode::Unknown; }
 bool EdgeBase::isTemporal() const { return type_ == EdgeType::Temporal; }
 bool EdgeBase::isSpatial() const { return type_ == EdgeType::Spatial; }
 
@@ -71,12 +63,7 @@ void EdgeBase::setTransform(const EdgeTransform& T_to_from) {
 }
 
 std::ostream& operator<<(std::ostream& out, const EdgeBase& e) {
-  if (e.type() == EdgeType::Spatial)
-    return out << "{" << e.from() << "--" << e.to() << "}";
-  else if (e.type() == EdgeType::Temporal)
-    return out << "{" << e.from() << "==" << e.to() << "}";
-  else
-    return out << "{" << e.from() << "??" << e.to() << "}";
+  return out << "{" << e.from() << "--" << e.to() << "}" << " mode " << static_cast<unsigned>(e.mode_) << " type " << static_cast<unsigned>(e.type_);
 }
 
 }  // namespace pose_graph

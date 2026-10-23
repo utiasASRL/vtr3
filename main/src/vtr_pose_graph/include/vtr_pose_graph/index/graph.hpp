@@ -18,6 +18,8 @@
  */
 #pragma once
 
+#include <random>
+
 #include "vtr_pose_graph/index/callback_interface.hpp"
 #include "vtr_pose_graph/index/graph_base.hpp"
 
@@ -55,7 +57,7 @@ class Graph : public GraphBase<V, E> {
   Graph(const CallbackPtr& callback = std::make_shared<Callback>());
 
   /** \brief Add a new run an increment the run id */
-  BaseIdType addRun();
+  MajorIdType addRun();
 
   /** \brief Return a blank vertex (current run) with the next available Id */
   template <class... Args>
@@ -64,7 +66,7 @@ class Graph : public GraphBase<V, E> {
   /** \brief Return a blank edge with the next available Id */
   template <class... Args>
   EdgePtr addEdge(const VertexId& from, const VertexId& to,
-                  const EdgeType& type, const bool manual,
+                  const EdgeType& type, const EdgeMode& mode,
                   const EdgeTransform& T_to_from, Args&&... args);
 
   /** \brief Lock to prevent graph change */
@@ -80,12 +82,13 @@ class Graph : public GraphBase<V, E> {
 
   using Base::edges_;
 
-  /** \brief The current maximum run index */
-  BaseIdType curr_major_id_ = InvalidBaseId;
+  MajorIdType curr_major_id_ = InvalidMajorId;
   BaseIdType curr_minor_id_ = InvalidBaseId;
 
-  /** \brief The current maximum run index */
   const CallbackPtr callback_;
+
+  std::mt19937_64 rng_{std::random_device{}()};
+  static uint8_t getRobotIdFromEnv();
 
   /**
    * \brief Lock by methods that change graph structure, can be used externally

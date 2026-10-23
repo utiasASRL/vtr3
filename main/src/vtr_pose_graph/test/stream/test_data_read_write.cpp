@@ -59,7 +59,7 @@ TEST(PoseGraph, ReadWrite) {
   for (int idx = 1; idx < VERTICES; ++idx) {
     graph->addVertex(stamp++);
     graph->addEdge(VertexId(0, idx - 1), VertexId(0, idx), EdgeType::Temporal,
-                   false, EdgeTransform(true));
+                   EdgeMode::Autonomous, EdgeTransform(true));
   }
 
   // Generate random data
