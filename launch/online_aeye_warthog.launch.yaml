@@ -1,13 +1,11 @@
 ## Online Lidar VTR3
-session_name: vtr_online_velodyne_grizzly
+session_name: vtr_online_aeye_warthog
 
 environment:
-  CYCLONEDDS_URI: ${GRIZZLY}/config/cyclonedds.xml # custom dds configs
-  RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
-  #ROS_DOMAIN_ID: "7"  # set this to a unique number when multiple ROS2 dependent system running on the same network
+  ROS_DOMAIN_ID: "7"   # set this to a unique number when multiple ROS2 dependent system running on the same network
+  ROS_DISCOVERY_SERVER: "192.168.131.1:11811;localhost:11811"
 
 start_directory: ${VTRTEMP}
-
 suppress_history: false
 
 windows:
@@ -19,9 +17,11 @@ windows:
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=aeye_grizzy_default.yaml
+        base_params:=aeye_warthog_default.yaml
         start_new_graph:=false
         use_sim_time:=false
+        planner:="unicycle_mpc"
+        model_dir:=${VTRROOT}/models
 
   - window_name: vtr_gui
     layout: main-horizontal
