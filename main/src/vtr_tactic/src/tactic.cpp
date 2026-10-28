@@ -212,7 +212,7 @@ bool Tactic::input_(const QueryCache::Ptr&) {
   auto now = std::chrono::steady_clock::now();
   if (now - last_load_live_ >= std::chrono::milliseconds(5000)) {
     last_load_live_ = now;
-    graph_->loadLive(); # TODO: ANTHONY YOU HAVE TO MAKE THIS METHOD FASTER
+    graph_->loadLive(); // # TODO: ANTHONY YOU HAVE TO MAKE THIS METHOD FASTER
   }
   return config_->preprocessing_skippable;
 }
