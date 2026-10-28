@@ -32,7 +32,7 @@ void estimateTime(pcl::PointCloud<PointWithInfo> &point_cloud, int64_t time_offs
   for (size_t i = 0; i < point_cloud.size(); i++) {
     auto &p = point_cloud[i];
 
-    p.timestamp = time_offset
+    p.timestamp = time_offset;
   }
 }
 
@@ -74,22 +74,26 @@ void AeyeConversionModule::run_(QueryCache &qdata0, OutputCache &,
   // clang-format off
   sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"), iter_y(*msg, "y"), iter_z(*msg, "z");
   sensor_msgs::PointCloud2ConstIterator<float> iter_range(*msg, "range"), iter_azimuth(*msg, "azimuth"), iter_elevation(*msg, "elevation");
-  sensor_msgs::PointCloud2ConstIterator<float> iter_reflectivity(*msg, "reflectivity"), iter_echo_index(*msg, "echo_index");
+  sensor_msgs::PointCloud2ConstIterator<float> iter_reflectivity(*msg, "reflectivity"); 
+  sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_echo_index(*msg, "echo_index");
+  size_t n = 0;
   for (size_t idx = 0; iter_x != iter_x.end();
-       ++idx, ++iter_x, ++iter_y, ++iter_z, ++iter_range, ++iter_azimuth, ++iter_elevation, ++iter_reflectivity) {
+       ++idx, ++iter_x, ++iter_y, ++iter_z, ++iter_range, ++iter_azimuth, ++iter_elevation, ++iter_reflectivity, ++iter_echo_index) {
+    if (*iter_echo_index > config_->echo_limit) continue;
     // cartesian coordinates
-    point_cloud->at(idx).x = *iter_x;
-    point_cloud->at(idx).y = *iter_y;
-    point_cloud->at(idx).z = *iter_z;
+    point_cloud->at(n).x = *iter_x;
+    point_cloud->at(n).y = *iter_y;
+    point_cloud->at(n).z = *iter_z;
     // polar coordinates
-    point_cloud->at(idx).rho = *iter_range;
-    point_cloud->at(idx).phi = *iter_azimuth;
-    point_cloud->at(idx).theta = *iter_elevation;
+    point_cloud->at(n).rho = *iter_range;
+    point_cloud->at(n).phi = *iter_azimuth;
+    point_cloud->at(n).theta =  M_PI_2 - *iter_elevation;
     // reflectivity
-    point_cloud->at(idx).intensity = *iter_intensity;
-    // echo index
-    point_cloud->at(idx).echo_index = *iter_echo_index;
+    // TODO: Look at fixing naming here?
+    point_cloud->at(n).intensity = *iter_reflectivity;
+    ++n;
   }
+  point_cloud->resize(n);
 
  
   // clang-format on
@@ -109,7 +113,7 @@ void AeyeConversionModule::run_(QueryCache &qdata0, OutputCache &,
     std::vector<int> indices;
     indices.reserve(filtered_point_cloud->size());
     for (size_t i = 0; i < filtered_point_cloud->size(); ++i) {
-      if (i % config_->horizontal_downsample == 0 ) && ((*point_cloud)[i].echo_index <= config_->echo_limit)
+      if ( (i % config_->horizontal_downsample) == 0 )
         indices.emplace_back(i);
     }
     *filtered_point_cloud =

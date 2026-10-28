@@ -40,7 +40,7 @@ class AeyeConversionModule : public tactic::BaseModule {
     PTR_TYPEDEFS(Config);
 
     bool visualize = false;
-    int echo_limit = 2; // inclusive limit, need to tune
+    int echo_limit = 0; // inclusive limit, need to tune
     int horizontal_downsample = 1;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,

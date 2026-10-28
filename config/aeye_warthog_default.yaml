@@ -116,7 +116,6 @@
       conversion:
         type: lidar.aeye_converter
         visualize: true
-        estimate_time: true
         downsample_ratio: 2
 
       filtering:
