@@ -74,11 +74,11 @@ void AeyeConversionModule::run_(QueryCache &qdata0, OutputCache &,
   // clang-format off
   sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"), iter_y(*msg, "y"), iter_z(*msg, "z");
   sensor_msgs::PointCloud2ConstIterator<float> iter_range(*msg, "range"), iter_azimuth(*msg, "azimuth"), iter_elevation(*msg, "elevation");
-  sensor_msgs::PointCloud2ConstIterator<float> iter_reflectivity(*msg, "reflectivity"); 
+  sensor_msgs::PointCloud2ConstIterator<float> iter_intensity(*msg, "intensity"); 
   sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_echo_index(*msg, "echo_index");
   size_t n = 0;
   for (size_t idx = 0; iter_x != iter_x.end();
-       ++idx, ++iter_x, ++iter_y, ++iter_z, ++iter_range, ++iter_azimuth, ++iter_elevation, ++iter_reflectivity, ++iter_echo_index) {
+       ++idx, ++iter_x, ++iter_y, ++iter_z, ++iter_range, ++iter_azimuth, ++iter_elevation, ++iter_intensity, ++iter_echo_index) {
     if (*iter_echo_index > config_->echo_limit) continue;
     // cartesian coordinates
     point_cloud->at(n).x = *iter_x;
@@ -90,7 +90,7 @@ void AeyeConversionModule::run_(QueryCache &qdata0, OutputCache &,
     point_cloud->at(n).theta =  M_PI_2 - *iter_elevation;
     // reflectivity
     // TODO: Look at fixing naming here?
-    point_cloud->at(n).intensity = *iter_reflectivity;
+    point_cloud->at(n).intensity = *iter_intensity;
     ++n;
   }
   point_cloud->resize(n);

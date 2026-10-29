@@ -9,6 +9,13 @@
                 <address>enx207bd29e670f</address>
             </interfaceWhiteList>
         </transport_descriptor>
+        <transport_descriptor>
+            <transport_id>robotethernet_2</transport_id>
+            <type>UDPv4</type>
+            <interfaceWhiteList>
+                <address>enx7cc2c61c696e</address>
+            </interfaceWhiteList>
+        </transport_descriptor>
             <!-- Create a descriptor for the new transport -->
             <transport_descriptor>
                 <transport_id>shm_transport</transport_id>
