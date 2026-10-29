@@ -41,9 +41,8 @@ void BaseState::processGoals(StateMachine& state_machine, const Event& event) {
   // this state does not process any goals
   if (event.signal != Signal::Continue) {
     std::stringstream ss;
-    ss << "Received unhandled signal: " << event.signal;
+    ss << "Received unhandled signal - not crashing for some reason idk: " << event.signal;
     CLOG(ERROR, "mission.state_machine") << ss.str();
-    throw std::runtime_error(ss.str());
   }
 
   //
