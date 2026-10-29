@@ -41,7 +41,8 @@
 
         # lidar pipeline
       #- lidar.pipeline
-      #- lidar.preprocessing
+      - lidar.preprocessing
+      - lidar.aeye_converter
       #- lidar.velodyne_converter_v2 # aeye converter logs under this name
       - lidar.odometry_icp
       #- lidar.odometry_map_maintenance
@@ -59,7 +60,7 @@
     env_info_topic: env_info
     # lidar related
     lidar_frame: apollo
-    lidar_topic: /apl32/aeye_point_cloud
+    lidar_topic: /Apollo/aeye_point_cloud
     queue_size: 1
     graph_projection:
       origin_lat: 43.7822
@@ -123,12 +124,12 @@
         num_threads: 8
         crop_range: 40.0
 
-        frame_voxel_size: 0.3 # grid subsampling voxel size
+        frame_voxel_size: 0.1 # grid subsampling voxel size, small for close-range (3-5 m) scenes
 
-        vertical_angle_res: 0.00095993 # vertical angle resolution in radians, equal to 0.055 degree measured from bag
+        vertical_angle_res: 0.00143117 # vertical angle resolution in radians, equal to the 0.082 degree scan-line pitch (240 lines over 19.6 degree)
         polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
         r_scale: 4.0 # scale down point range by this value after taking log, whatever works
-        h_scale: 1.891 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution, horizontal resolution is 0.104 degree, so 0.104 / 0.055 = 1.891
+        h_scale: 2.54 # scale down yaw(phi) by this value so that vertical resolution ~= horizontal resolution, horizontal resolution is 0.104 degree x downsample_ratio 2 = 0.208 degree, so 0.208 / 0.082 = 2.54
 
         num_sample1: 10000 # max number of sample after filtering based on planarity
         min_norm_score1: 0.95 # min planarity score
@@ -172,7 +173,7 @@
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.1
 
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
@@ -187,7 +188,7 @@
         type: lidar.intra_exp_merging_v2
         depth: 6.0
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.1
 
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
@@ -196,8 +197,8 @@
         type: lidar.dynamic_detection
         depth: 12.0
 
-        horizontal_resolution: 0.00181514 # 0.104 degree
-        vertical_resolution: 0.00095993 # 0.055 degree
+        horizontal_resolution: 0.00363028 # 0.208 degree (0.104 x downsample_ratio 2)
+        vertical_resolution: 0.00143117 # 0.082 degree line pitch
         max_num_observations: 10000
         min_num_observations: 4
         dynamic_threshold: 0.3
@@ -205,7 +206,7 @@
       inter_exp_merging:
         type: "lidar.inter_exp_merging_v2"
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.1
         max_num_experiences: 128
         distance_threshold: 0.6
         planar_threshold: 0.2
