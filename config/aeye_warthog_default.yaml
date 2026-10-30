@@ -117,14 +117,14 @@
       conversion:
         type: lidar.aeye_converter
         visualize: true
-        downsample_ratio: 2
+        downsample_ratio: 10
 
       filtering:
         type: lidar.preprocessing
         num_threads: 8
         crop_range: 40.0
 
-        frame_voxel_size: 0.1 # grid subsampling voxel size, small for close-range (3-5 m) scenes
+        frame_voxel_size: 0.3 # grid subsampling voxel size, small for close-range (3-5 m) scenes
 
         vertical_angle_res: 0.00143117 # vertical angle resolution in radians, equal to the 0.082 degree scan-line pitch (240 lines over 19.6 degree)
         polar_r_scale: 2.0 # polar_r_scale x vertical_angle_res = nearest neighbor search radius for normal computation
@@ -141,7 +141,7 @@
 
         cluster_num_sample: 10000 # maxnumber of sample after removing isolated points
 
-        visualize: true
+        visualize: false
     odometry:
       icp:
         type: lidar.odometry_icp
@@ -161,14 +161,14 @@
         initial_max_iter: 4
         initial_max_pairing_dist: 1.5
         initial_max_planar_dist: 1.0
-        refined_max_iter: 50
+        refined_max_iter: 25
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
         averaging_num_steps: 2
         verbose: false
         max_iterations: 1
         min_matched_ratio: 0.0
-        visualize: true
+        visualize: false
         gyro_cov: 1e-3
       mapping:
         type: lidar.odometry_map_maintenance_v2
@@ -178,7 +178,7 @@
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
         point_life_time: 20.0
-        visualize: true
+        visualize: false
       vertex_test:
         type: lidar.vertex_test
 
@@ -210,7 +210,7 @@
         initial_max_iter: 4
         initial_max_pairing_dist: 1.5
         initial_max_planar_dist: 1.0
-        refined_max_iter: 50
+        refined_max_iter: 25
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
         averaging_num_steps: 2
