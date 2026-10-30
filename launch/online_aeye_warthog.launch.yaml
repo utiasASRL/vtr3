@@ -4,6 +4,8 @@ session_name: vtr_online_aeye_warthog
 environment:
   ROS_DOMAIN_ID: "7"   # set this to a unique number when multiple ROS2 dependent system running on the same network
   ROS_DISCOVERY_SERVER: "192.168.131.1:11811;localhost:11811"
+  ROS_SUPER_CLIENT: "True"
+  FASTRTPS_DEFAULT_PROFILES_FILE: ${VTRSRC}/config/vtr_rtps.xml
 
 start_directory: ${VTRTEMP}
 suppress_history: false
@@ -40,3 +42,10 @@ windows:
         #- source ${VTRSRC}/main/install/setup.bash
         #panes:
         #- ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/aeye.rviz --ros-args -p use_sim_time:=true
+        #
+  - window_name: rosbag
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+    panes:
+      - ros2 bag record --all -o dome_record
