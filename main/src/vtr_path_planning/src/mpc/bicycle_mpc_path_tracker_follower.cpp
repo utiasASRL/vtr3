@@ -132,13 +132,13 @@ bool BicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, cons
     return false;
   }
 
-  auto leader_path_time = rclcpp::Time(recentLeaderPath_->header.stamp).nanoseconds();
+  const auto leader_path_time = rclcpp::Time(recentLeaderPath_->header.stamp).nanoseconds();
   
   const auto delta_t = curr_time - leader_path_time;
   if (delta_t > 1e9) {
-  CLOG_EVERY_N(1, WARNING,"cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping\n Delay: "
-         << delta_t / 1e9;
-  return false;
+    CLOG_EVERY_N(1, WARNING,"cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping\n Delay: "
+          << delta_t / 1e9;
+    return false;
   }
 
   return true;
@@ -168,7 +168,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   estimatedDistancePub_->publish(internal_dist);
 
   mpcConfig->VF = abs(leader_vel_(0));
-  
+
   for (int i = 0; i < mpcConfig->N; i++){
     const auto T_w_lp = T_fw_lw_ * leaderPath_copy.at(curr_time + (1+i) * mpcConfig->DT * 1e9);
     follower_mpc_config->leader_reference_poses.push_back(tf_to_global(T_w_p.inverse() *  T_w_lp));
@@ -229,11 +229,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
       CLOG(DEBUG, "cbit.control") << "False end of path. Setting cost of EoP poses to: " << weighting;
     }
     
-    if (config_->waypoint_selection != "reflector" && config_->waypoint_selection != "estimated_dist" )
-      mpcConfig->cost_weights.push_back(weighting);
-    else {
-      mpcConfig->cost_weights.push_back(1.0);
-    }
+    mpcConfig->cost_weights.push_back(weighting);
     last_pose = curr_pose;
 
   }
@@ -245,7 +241,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   mpcConfig->up_barrier_q  = referenceInfo.barrier_q_max;
   mpcConfig->low_barrier_q = referenceInfo.barrier_q_min;
 
-  CLOG(INFO, "mpc.follower") << referenceInfo.barrier_q_max;
+  CLOG(DEBUG, "mpc.follower") << "Max corridor width " << referenceInfo.barrier_q_max;
 
 }
 
