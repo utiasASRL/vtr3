@@ -44,8 +44,6 @@
       bicycle_mpc_follower:
         type: bicycle_mpc_follower
         control_period: 100
-        distance_margin: 0.35
-        waypoint_selection: arclength
         speed_scheduler:
           planar_curv_weight: 0.0
           profile_curv_weight: 1.0 
@@ -124,7 +122,8 @@
     bicycle_mpc_follower:
       leader_namespace:
         /prof_plum 
-      follow_distance: 2.5
+      follow_distance: 10.0
+      waypoint_selection: arclength
 
 /col_mustard/vtr/navigator:
   ros__parameters:

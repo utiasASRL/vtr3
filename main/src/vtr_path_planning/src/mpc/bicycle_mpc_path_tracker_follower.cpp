@@ -97,7 +97,7 @@ void BicycleMPCPathTrackerFollower::loadMPCConfig(
   BicycleMPCPathTracker::loadMPCConfig(mpc_config, w_p_r_in_r, applied_vel, isReversing);
   mpc_config->Q_dist = isReversing ? config_->r_q_dist : config_->f_q_dist;
   mpc_config->distance = config_->following_offset;
-  mpc_config->distance_margin = config_->distance_margin;
+  mpc_config->distance_margin = config_->waypoint_selection == "arclength" ? std::numeric_limits<float>::max() : distance_margin;
   mpc_config->recovery = false;
 }
 
