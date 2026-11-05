@@ -54,21 +54,13 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
     PTR_TYPEDEFS(Config);
     std::string leader_namespace = "leader";
     
-    // Options: leader_vel euclidean arclength reflector estimated_dist
+    // Options: leader_vel euclidean arclength
     std::string waypoint_selection = "euclidean";
 
-    // Options: leader_pred, leader_ref
-    std::string waypoint_source = "leader_pred";
-
-    double following_offset = 0.5; //m
-    double distance_margin = 1.0;
+    double following_offset = 0.5; // m
+    double distance_margin = 1.0; // m
     double f_q_dist = 1.0;
     double r_q_dist = 1.0;
-
-    //Distance PID Gains
-    double kp = 1.0;
-    double kd = 0.0;
-    double ki = 0.0;
 
     // Misc
     int command_history_length = 100;
@@ -138,8 +130,6 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   FloatMsg::SharedPtr recentLeaderDist_;
   rclcpp::Subscription<FloatMsg>::SharedPtr leaderDistanceSub_;
   void onLeaderDist(const FloatMsg::SharedPtr distance);
-  float lastError_ = 0;
-  float errorIntegrator = 0;
 
 
 };
