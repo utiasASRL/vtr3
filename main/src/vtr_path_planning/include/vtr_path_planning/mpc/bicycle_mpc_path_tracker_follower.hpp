@@ -127,10 +127,6 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   bool hasRequestedLeaderRoute_ = false;
 
   rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;
-  FloatMsg::SharedPtr recentLeaderDist_;
-  rclcpp::Subscription<FloatMsg>::SharedPtr leaderDistanceSub_;
-  void onLeaderDist(const FloatMsg::SharedPtr distance);
-
 
 };
 

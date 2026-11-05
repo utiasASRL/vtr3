@@ -73,25 +73,21 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   using std::placeholders::_1;
   const auto leader_path_topic = config_->leader_namespace + "/vtr/mpc_prediction";
   const auto leader_graph_topic = config_->leader_namespace + "/vtr/graph_state_srv";
-  const auto leader_ref_topic = config->leader_namespace + "/vtr/stamped_reference_poses";
   const auto leader_route_topic = config_->leader_namespace + "/vtr/following_route";
   const auto leader_route_service = config_->leader_namespace + "/vtr/following_route_srv";
   
-  
+  CLOG(INFO, "mpc.follower") << "Listening for MPC rollouts on " << leader_path_topic;
   CLOG(INFO, "mpc.follower") << "Requesting graph info from " << leader_graph_topic;
   CLOG(INFO, "mpc.follower") << "Listening for route on " << leader_route_topic;
-  
   CLOG(INFO, "mpc.follower") << "Target separation: " << config->following_offset;
   CLOG(INFO, "mpc.follower") << "Robot's wheelbase: " << config->wheelbase << "m";
 
 
   leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
-  CLOG(INFO, "mpc.follower") << "Listening for MPC rollouts on " << leader_path_topic;
   
   leaderRouteSrv_ = robot_state->node->create_client<FollowingRouteSrv>(leader_route_service);
 
   estimatedDistancePub_ = robot_state->node->create_publisher<FloatMsg>("estimated_leader_distance", 10);
-  leaderDistanceSub_ = robot_state->node->create_subscription<FloatMsg>("leader_distance", rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderDist, this, _1));
 }
 
 BicycleMPCPathTrackerFollower::~BicycleMPCPathTrackerFollower() {}
@@ -314,10 +310,6 @@ void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<Fol
     CLOG(WARNING, "mpc.follower") << "Leader route received but robot state chain is not valid or empty. Cannot update leader root.";
     hasRequestedLeaderRoute_ = false;
   }
-}
-
-void BicycleMPCPathTrackerFollower::onLeaderDist(const FloatMsg::SharedPtr distance) {
-  recentLeaderDist_ = distance;
 }
 
 }  // namespace vtr::path_planning
