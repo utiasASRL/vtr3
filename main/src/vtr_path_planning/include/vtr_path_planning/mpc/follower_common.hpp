@@ -39,8 +39,6 @@ public:
 
   PathInterpolator(const nav_msgs::msg::Path::SharedPtr& path);
 
-  PathInterpolator(const geometry_msgs::msg::PoseArray::SharedPtr& refs, const double dt);
-
   Transformation at(tactic::Timestamp time) const;
   tactic::Timestamp start() const;
 
