@@ -1,18 +1,5 @@
 /**:
   ros__parameters:
-    pipeline:
-      preprocessing:
-        - conversion
-        - filtering
-        - locate_leader
-    preprocessing:
-      locate_leader:
-        type: lidar.leader_locator
-        maximum_distance: 5.0
-        minimum_distance: 0.0
-        extrinsic: [0.0321,0.0,-0.4683]
-        intensity_threshold: 10000.0
-        publish: true
     tactic:
       chain:
         alpha: 0.0
@@ -58,12 +45,7 @@
         type: bicycle_mpc_follower
         control_period: 100
         distance_margin: 0.35
-        waypoint_selection: euclidean
-        waypoint_source: leader_pred
-        longitudinal_control:
-          kp: 2.0
-          ki: 0.5
-          kd: 0.0
+        waypoint_selection: arclength
         speed_scheduler:
           planar_curv_weight: 0.0
           profile_curv_weight: 1.0 
@@ -105,17 +87,15 @@
       #- mission.server
         # planner manager
       - cbit.control
-      - cbit.debug
-      - cbit.path_planning
+      # - cbit.debug
+      # - cbit.path_planning
         # mpc
-      - mpc.speed_scheduler
-      - mpc.debug
+      # - mpc.speed_scheduler
+      # - mpc.debug
       - mpc.solver
       - mpc.follower
       - mpc.follower.target
-      - mpc.follower.pid
         # path planner
-      - cbit_planner.path_planning
         # pose graph
       #- pose_graph
         # lidar pipeline
@@ -128,7 +108,6 @@
       #- lidar.localization_icp
       #- lidar.intra_exp_merging
       #- lidar.inter_exp_merging
-      - lidar.leader_locator
 
 
 /prof_plum/vtr/navigator:
@@ -137,7 +116,7 @@
     bicycle_mpc_follower:
       leader_namespace:
         /mr_green 
-      follow_distance: 1.9
+      follow_distance: 2.5
 
 /mr_green/vtr/navigator:
   ros__parameters:
@@ -145,23 +124,23 @@
     bicycle_mpc_follower:
       leader_namespace:
         /prof_plum 
-      follow_distance: 1.9
+      follow_distance: 2.5
 
-# /col_mustard/vtr/navigator:
-#   ros__parameters:
-#    path_planning:
-#     bicycle_mpc_follower:
-#       leader_namespace:
-#         /mr_green
-#       follow_distance: 2.5
+/col_mustard/vtr/navigator:
+  ros__parameters:
+   path_planning:
+    bicycle_mpc_follower:
+      leader_namespace:
+        /prof_plum
+      follow_distance: 5.0
 
-# /mrs_peacock/vtr/navigator:
-#   ros__parameters:
-#    path_planning:
-#     bicycle_mpc_follower:
-#       leader_namespace:
-#         /mr_green
-#       follow_distance: 5.0
+/mrs_peacock/vtr/navigator:
+  ros__parameters:
+   path_planning:
+    bicycle_mpc_follower:
+      leader_namespace:
+        /prof_plum
+      follow_distance: 7.5
 
 /vtr/convoy_planning_node:
   ros__parameters:
@@ -171,11 +150,11 @@
     prof_plum:
       leader_mpc: bicycle_mpc
       follower_mpc: bicycle_mpc_follower
-    # col_mustard:
-    #   leader_mpc: bicycle_mpc
-    #   follower_mpc: bicycle_mpc_follower
-    # mrs_peacock:
-    #   leader_mpc: bicycle_mpc
-    #   follower_mpc: bicycle_mpc_follower
+    col_mustard:
+      leader_mpc: bicycle_mpc
+      follower_mpc: bicycle_mpc_follower
+    mrs_peacock:
+      leader_mpc: bicycle_mpc
+      follower_mpc: bicycle_mpc_follower
 
     

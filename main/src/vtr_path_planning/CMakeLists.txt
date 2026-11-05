@@ -55,7 +55,6 @@ add_custom_command(
          "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/unicycle_follower_mpc_solver.hpp"
          "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp"
          "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_follower_mpc_solver.hpp"
-         "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_joint_mpc_solver.hpp"
   COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
   DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/export_mpc.py"
@@ -63,7 +62,6 @@ add_custom_command(
           "${CMAKE_CURRENT_SOURCE_DIR}/scripts/unicycle_follower_solver.py"
           "${CMAKE_CURRENT_SOURCE_DIR}/scripts/bicycle_solver_pt.py"
           "${CMAKE_CURRENT_SOURCE_DIR}/scripts/bicycle_follower_solver_pt.py"
-          "${CMAKE_CURRENT_SOURCE_DIR}/scripts/bicycle_follower_joint_solver_pt.py"
 )
 
 add_custom_target(generate_headers ALL
@@ -71,7 +69,6 @@ add_custom_target(generate_headers ALL
           "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/unicycle_follower_mpc_solver.hpp"
           "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_mpc_solver.hpp"
           "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_follower_mpc_solver.hpp"
-          "${CMAKE_CURRENT_SOURCE_DIR}/include/vtr_path_planning/mpc/generated/bicycle_joint_mpc_solver.hpp"
 )
 
 file(GLOB_RECURSE SRC src/mpc/*.cpp EXCLUDE src/mpc/generated/*)
@@ -103,10 +100,6 @@ target_link_libraries(solve_unicycle_follower_mpc casadi)
 add_library(solve_bicycle_follower_mpc SHARED src/mpc/generated/bicycle_follower_mpc_solver.cpp)
 add_dependencies(solve_bicycle_follower_mpc generate_headers)
 target_link_libraries(solve_bicycle_follower_mpc casadi)
-
-add_library(solve_bicycle_joint_mpc SHARED src/mpc/generated/bicycle_joint_mpc_solver.cpp)
-add_dependencies(solve_bicycle_joint_mpc generate_headers)
-target_link_libraries(solve_bicycle_joint_mpc casadi)
 
 find_package(matplotlib_cpp REQUIRED)
 include_directories(SYSTEM ${matplotlib_cpp_SOURCE_DIR})
@@ -144,7 +137,6 @@ install(
     solve_bicycle_mpc
     solve_unicycle_follower_mpc
     solve_bicycle_follower_mpc
-    solve_bicycle_joint_mpc
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
