@@ -180,8 +180,8 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   mpcConfig->reference_poses.clear();
   auto referenceInfo = [&](){
     if(config_->waypoint_selection == "euclidean") {
-      const auto final_leader_p_value = findRobotP(leader_world_poses.back(), chain).second;
-      const auto initial_leader_p_value = findRobotP(leader_world_poses.front(), chain).second;
+      const auto final_leader_p_value = findRobotP(leader_world_poses.back(), chain, chain->trunkSequenceId() + follower_mpc_config->distance / 0.3).second;
+      const auto initial_leader_p_value = findRobotP(leader_world_poses.front(), chain, chain->trunkSequenceId() + follower_mpc_config->distance / 0.3).second;
       if (final_leader_p_value < state_p || initial_leader_p_value < state_p) {
         CLOG(ERROR, "mpc.follower") << "The leader is believed to be behind the follower. Cannot proceed!";
         throw std::runtime_error("Leader p was behind follower.");
@@ -193,7 +193,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
       return generateFollowerReferencePosesEuclidean(leader_world_poses, max_p_vals, chain, state_p, follower_mpc_config->distance);
     }
     else if (config_->waypoint_selection == "arclength") {
-      const auto[_, final_leader_p_value] = findRobotP(leader_world_poses.back(), chain, true);
+      const auto[_, final_leader_p_value] = findRobotP(leader_world_poses.back(), chain, chain->trunkSequenceId() + follower_mpc_config->distance / 0.3);
       if (final_leader_p_value < state_p) {
         CLOG(ERROR, "mpc.follower") << "The leader is believed to be behind the follower. Cannot proceed!";
         throw std::runtime_error("Leader p was behind follower.");
