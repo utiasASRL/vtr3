@@ -152,10 +152,8 @@ tactic::SegmentInfo findClosestSegment(const lgmath::se3::Transformation& T_wr, 
     }
   }
 
-tactic::SegmentInfo findClosestSegment(const double p, const tactic::LocalizationChain::Ptr chain, unsigned sid_start) {
+tactic::SegmentInfo findClosestSegment(const double p, const tactic::LocalizationChain::Ptr chain, const unsigned sid_start) {
 
-    double best_distance = std::numeric_limits<double>::max();
-    unsigned best_sid = sid_start;
     const unsigned end_sid = std::min(sid_start + 20 + 1,
                                     unsigned(chain->size()));
 
@@ -163,52 +161,34 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
     // the chain
     const unsigned begin_sid = unsigned(std::max(int(sid_start) - 5, 0));
 
+    // Check if the requested p value occurs before the search window
+    if (p < chain->p(begin_sid)) {
+      CLOG(WARNING, "cbit.debug") << "p value of " << p << " is less than beginning of range " << chain->p(begin_sid);
+      return tactic::SegmentInfo(begin_sid, begin_sid + 1);
+    }
+
     // Find the closest vertex to the input
     for (auto path_it = chain->begin(begin_sid); unsigned(path_it) < end_sid;
         ++path_it) {
 
-      // Calculate the distance
-      double distance = abs(p - chain->p(path_it));
-
-      // Record the best distance
-      if (distance < best_distance) {
-        best_distance = distance;
-        best_sid = unsigned(path_it);
-      }
+      if (p < chain->p(path_it))
+        return tactic::SegmentInfo(unsigned(path_it) - 1, unsigned(path_it));
     }
 
     //Handle end of path exceptions
-    if(best_sid == 0)
-      return tactic::SegmentInfo(best_sid, best_sid + 1);
-    if(best_sid == chain->size() - 1) {
-      CLOG(DEBUG, "cbit.debug") << "Found the final segment";
-      return tactic::SegmentInfo(best_sid - 1, best_sid);
-    }
-
-    if(p - chain->p(best_sid) > 0){
-      return tactic::SegmentInfo(best_sid, best_sid + 1);
-    }
-    else{
-      return tactic::SegmentInfo(best_sid - 1, best_sid);
-    }
+    CLOG(DEBUG, "cbit.debug") << "Found the final segment";
+    return tactic::SegmentInfo(end_sid - 1, end_sid);
+   
   }
 
-std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, bool force_no_extrapolation) {
+std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain) {
+  return findRobotP(T_wr, chain, chain->trunkSequenceId());
+}
+
+std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, const unsigned sid_start) {
   double state_interp = 0;
-  auto segment = findClosestSegment(T_wr, chain, chain->trunkSequenceId());
+  auto segment = findClosestSegment(T_wr, chain, sid_start);
   auto path_ref = interpolatePath(T_wr, chain->pose(segment.start_sid), chain->pose(segment.end_sid), state_interp);
-  if(force_no_extrapolation)
-  {
-	  while(state_interp > 1.0) {
-		  double state_interp_old = state_interp;
-		  segment = findClosestSegment(T_wr, chain, segment.start_sid);
-		  path_ref = interpolatePath(T_wr, chain->pose(segment.start_sid), chain->pose(segment.end_sid), state_interp);
-		  if(std::abs(state_interp_old - state_interp) < 1e-3)
-		  {
-			  break;
-		  }
-	  }
-  }
   return std::make_pair(segment.dir, chain->p(segment.start_sid) + state_interp * (chain->p(segment.end_sid) - chain->p(segment.start_sid)));
 }
 

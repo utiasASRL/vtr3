@@ -81,9 +81,6 @@ UnicycleMPCPathTrackerFollower::UnicycleMPCPathTrackerFollower(const Config::Con
 
   leaderRouteSrv_ = robot_state->node->create_client<FollowingRouteSrv>(leader_route_service);
 
-  leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(leader_graph_topic);
-  followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
-
   estimatedDistancePub_ = robot_state->node->create_publisher<FloatMsg>("estimated_leader_distance", 10);
 }
 

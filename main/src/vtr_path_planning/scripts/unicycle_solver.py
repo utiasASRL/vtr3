@@ -125,15 +125,14 @@ for k in range(1, N):
     k3 = motion_model(st + step_horizon/2*k2, con, last_vel)
     k4 = motion_model(st + step_horizon * k3, con, last_vel)
     st_next_RK4 = st + (step_horizon / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
-    # st_next_int = motion_model(st, con)
 
     g = ca.vertcat(g, st_next[:2] - st_next_RK4[:2])
     g = ca.vertcat(g, so2_error(st_next[2], st_next_RK4[2]))
 
-
+# Corridor Constraints
 for k in range(N):
-    theta_k = P[n_states*(k+1) + 2]
-    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, k] - P[n_states*(k+1): n_states*(k+1)+2]))
+    theta_k = ref_poses[n_states*k + 2]
+    g = ca.vertcat(g, ca.vertcat(-sin(theta_k), cos(theta_k)).T @ (X[:2, k+1] - ref_poses[n_states*k: n_states*k+2]))
 
 #Acceleration constraints
 cost_fn += (U[:, 0] - measured_velo).T @ R_acc @ (U[:, 0] - measured_velo)
