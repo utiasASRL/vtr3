@@ -117,7 +117,7 @@
         #- safe_corridor
         #- change_detection_sync
         - memory
-      submap_translation_threshold: 1.5
+      submap_translation_threshold: 3.0
       submap_rotation_threshold: 30.0
       target_loc_time: 20.0
 
@@ -134,7 +134,7 @@
       filtering:
         type: lidar.preprocessing
         num_threads: 4
-        crop_range: 40.0
+        crop_range: 20.0
 
         frame_voxel_size: 0.3 # grid subsampling voxel size
 
@@ -187,7 +187,7 @@
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
-        map_voxel_size: 0.3
+        map_voxel_size: 0.6
 
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
@@ -196,7 +196,7 @@
       vertex_test:
         type: lidar.vertex_test
 
-        max_translation: 0.30
+        max_translation: 0.3
         max_rotation: 10.0
       intra_exp_merging:
         type: lidar.intra_exp_merging_v2
