@@ -98,7 +98,7 @@ struct SegmentInfo {
   unsigned start_sid = 0;
   unsigned end_sid = 0;   
   bool direction_switch = false; 
-  double start_p = 0.0; 
+  double state_p = 0.0; 
 
   SegmentInfo() = default;
   SegmentInfo(Direction d, const unsigned start_sid, const unsigned end_sid)

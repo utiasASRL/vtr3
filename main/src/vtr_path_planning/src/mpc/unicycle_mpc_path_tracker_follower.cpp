@@ -172,9 +172,9 @@ void UnicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfi
   mpcConfig->reference_poses.clear();
   auto referenceInfo = [&](){
     if(config_->waypoint_selection == "euclidean") {
-      const auto final_leader_p_value = findRobotSegmentInfo(leader_world_poses.back(), chain, leader_sid_).start_p;
+      const auto final_leader_p_value = findRobotSegmentInfo(leader_world_poses.back(), chain, leader_sid_).state_p;
       const auto initial_leader_segment = findRobotSegmentInfo(leader_world_poses.front(), chain, leader_sid_);
-      const auto initial_leader_p_value = initial_leader_segment.start_p;
+      const auto initial_leader_p_value = initial_leader_segment.state_p;
       leader_sid_ = initial_leader_segment.start_sid;
       std::vector<double> max_p_vals;
       for (float i = 0; i < leader_world_poses.size(); i++) {
@@ -185,11 +185,11 @@ void UnicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfi
     else if (config_->waypoint_selection == "arclength") {
     const auto final_leader_seg = findRobotSegmentInfo(leader_world_poses.back(), chain, leader_sid_);
       leader_sid_ = final_leader_seg.start_sid;
-      if (final_leader_seg.start_p < state_p) {
+      if (final_leader_seg.state_p < state_p) {
         CLOG(ERROR, "mpc.follower") << "The leader is believed to be behind the follower. Cannot proceed!";
         throw std::runtime_error("Leader p was behind follower.");
       }
-      return generateFollowerReferencePosesArclength(leader_world_poses, final_leader_seg.start_p, chain, state_p, follower_mpc_config->distance);
+      return generateFollowerReferencePosesArclength(leader_world_poses, final_leader_seg.state_p, chain, state_p, follower_mpc_config->distance);
     }
     else {
       std::vector<double> p_rollout;

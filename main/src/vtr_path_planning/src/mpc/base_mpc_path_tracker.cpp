@@ -164,7 +164,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   auto segment_info = findRobotSegmentInfo(T_w_p * T_p_r_extp, chain);
 
   auto dir = segment_info.dir;
-  double state_p = segment_info.start_p;
+  double state_p = segment_info.state_p;
   bool isReverse = (dir == tactic::Direction::Backward);
   bool dir_switch = segment_info.direction_switch;
 

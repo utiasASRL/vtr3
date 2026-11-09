@@ -186,9 +186,11 @@ tactic::SegmentInfo findRobotSegmentInfo(const lgmath::se3::Transformation& T_wr
   auto segment = findClosestSegment(T_wr, chain, start_sid);
   auto path_ref = interpolatePath(T_wr, chain->pose(segment.start_sid), chain->pose(segment.end_sid), state_interp);
   tactic::SegmentInfo segment_info;
-  segment_info.start_p = chain->p(segment.start_sid) + state_interp * (chain->p(segment.end_sid) - chain->p(segment.start_sid));
+  segment_info.state_p = chain->p(segment.start_sid) + state_interp * (chain->p(segment.end_sid) - chain->p(segment.start_sid));
   segment_info.dir = segment.dir;
   segment_info.direction_switch = segment.direction_switch;
+  segment_info.start_sid = segment.start_sid;
+  segment_info.end_sid = segment.end_sid;
   return segment_info;
 }
 

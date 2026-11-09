@@ -180,9 +180,9 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   mpcConfig->reference_poses.clear();
   auto referenceInfo = [&](){
     if(config_->waypoint_selection == "euclidean") {
-      const auto final_leader_p_value = findRobotSegmentInfo(leader_world_poses.back(), chain, leader_sid_).start_p;
+      const auto final_leader_p_value = findRobotSegmentInfo(leader_world_poses.back(), chain, leader_sid_).state_p;
       const auto initial_leader_segment = findRobotSegmentInfo(leader_world_poses.front(), chain, leader_sid_);
-      const auto initial_leader_p_value = initial_leader_segment.start_p;
+      const auto initial_leader_p_value = initial_leader_segment.state_p;
       leader_sid_ = initial_leader_segment.start_sid;
       if (final_leader_p_value < state_p || initial_leader_p_value < state_p) {
         CLOG(ERROR, "mpc.follower") << "The leader is believed to be behind the follower. Cannot proceed!";
@@ -197,12 +197,12 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
     else if (config_->waypoint_selection == "arclength") {
       const auto final_leader_seg = findRobotSegmentInfo(leader_world_poses.back(), chain, leader_sid_);
       leader_sid_ = final_leader_seg.start_sid;
-      CLOG(DEBUG, "mpc.follower") << "Leader sid is " << leader_sid_ << " robot p is " << final_leader_seg.start_p;
-      if (final_leader_seg.start_p < state_p) {
+      CLOG(DEBUG, "mpc.follower") << "Leader sid is " << leader_sid_ << " robot p is " << final_leader_seg.state_p;
+      if (final_leader_seg.state_p < state_p) {
         CLOG(ERROR, "mpc.follower") << "The leader is believed to be behind the follower. Cannot proceed!";
         throw std::runtime_error("Leader p was behind follower.");
       }
-      return generateFollowerReferencePosesArclength(leader_world_poses, final_leader_seg.start_p, chain, state_p, follower_mpc_config->distance);
+      return generateFollowerReferencePosesArclength(leader_world_poses, final_leader_seg.state_p, chain, state_p, follower_mpc_config->distance);
     }
     else {
       std::vector<double> p_rollout;
