@@ -10,7 +10,7 @@
     
         # tactic
       - tactic
-      # - tactic.pipeline
+      - tactic.pipeline
       # - tactic.eop
       # - tactic.module
       # - tactic.module.live_mem_manager
@@ -28,7 +28,7 @@
       #- mpc.cost_function
       #- mpc.cbit
       #- mpc.debug
-      #- cbit.control
+      - cbit.control
       #- obstacle detection.cbit
       #- grizzly_controller_tests.cbit
       #- ouster
@@ -219,7 +219,7 @@
         visualize: true
       memory:
         type: live_mem_manager
-        window_size: 0
+        window_size: 5
     localization:
       recall:
         type: lidar.localization_map_recall
@@ -252,7 +252,7 @@
       speed_scheduler:
         planar_curv_weight: 0.0
         profile_curv_weight: 1.0 
-        eop_weight: 100000.0 # was 0
+        eop_weight: 1.0 # was 0
         min_vel: 0.8
       mpc:
         # Controller Params
