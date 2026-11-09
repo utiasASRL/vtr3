@@ -313,10 +313,15 @@ void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<Fol
       leader_sid_++;
     }
 
+
     T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    
     CLOG(INFO, "mpc.follower") << "Set relative transform to : " << T_fw_lw_;
     hasRequestedLeaderRoute_ = false;
 
+    if (leader_sid_ == robot_state_->chain->sequence().size()) {
+      leader_root_ = tactic::VertexId::Invalid();
+      CLOG(ERROR, "mpc.follower") << "Leader's root vertex was not found within the follower's chain. Undefined state.";
+    }
   }
   else{
     CLOG(WARNING, "mpc.follower") << "Leader route received but robot state chain is not valid or empty. Cannot update leader root.";
