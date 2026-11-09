@@ -172,8 +172,10 @@ void UnicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfi
   mpcConfig->reference_poses.clear();
   auto referenceInfo = [&](){
     if(config_->waypoint_selection == "euclidean") {
-      const auto final_leader_p_value = findRobotP(leader_world_poses.back(), chain).second;
-      const auto initial_leader_p_value = findRobotP(leader_world_poses.front(), chain).second;
+      const auto final_leader_p_value = findRobotSegmentInfo(leader_world_poses.back(), chain, leader_sid_).start_p;
+      const auto initial_leader_segment = findRobotSegmentInfo(leader_world_poses.front(), chain, leader_sid_);
+      const auto initial_leader_p_value = initial_leader_segment.start_p;
+      leader_sid_ = initial_leader_segment.start_sid;
       std::vector<double> max_p_vals;
       for (float i = 0; i < leader_world_poses.size(); i++) {
         max_p_vals.push_back(initial_leader_p_value + i / (leader_world_poses.size() - 1) * (final_leader_p_value - initial_leader_p_value));
@@ -181,8 +183,13 @@ void UnicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfi
       return generateFollowerReferencePosesEuclidean(leader_world_poses, max_p_vals, chain, state_p, follower_mpc_config->distance);
     }
     else if (config_->waypoint_selection == "arclength") {
-      const auto[_, final_leader_p_value] = findRobotP(leader_world_poses.back(), chain, true);
-      return generateFollowerReferencePosesArclength(leader_world_poses, final_leader_p_value, chain, state_p, follower_mpc_config->distance);
+    const auto final_leader_seg = findRobotSegmentInfo(leader_world_poses.back(), chain, leader_sid_);
+      leader_sid_ = final_leader_seg.start_sid;
+      if (final_leader_seg.start_p < state_p) {
+        CLOG(ERROR, "mpc.follower") << "The leader is believed to be behind the follower. Cannot proceed!";
+        throw std::runtime_error("Leader p was behind follower.");
+      }
+      return generateFollowerReferencePosesArclength(leader_world_poses, final_leader_seg.start_p, chain, state_p, follower_mpc_config->distance);
     }
     else {
       std::vector<double> p_rollout;
@@ -258,6 +265,12 @@ void UnicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<Fo
           std::make_shared<pose_graph::eval::mask::privileged::Eval<tactic::GraphBase>>(*graph_);
     auto connected = graph_->dijkstraSearch(follower_root, leader_root_, std::make_shared<pose_graph::eval::weight::ConstEval>(1, 1), eval);
     
+        
+    for (const auto &seq_elem : robot_state_->chain->sequence()) {
+      if (seq_elem == leader_root_) break;
+      leader_sid_++;
+    }
+
     T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    
     CLOG(INFO, "mpc.follower") << "Set relative transform to : " << T_fw_lw_;
     hasRequestedLeaderRoute_ = false;

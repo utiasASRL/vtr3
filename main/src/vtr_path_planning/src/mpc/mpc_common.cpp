@@ -181,26 +181,19 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
    
   }
 
-std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain) {
-  return findRobotP(T_wr, chain, chain->trunkSequenceId());
-}
-
-std::pair<tactic::Direction, double> findRobotP(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, const unsigned sid_start) {
+tactic::SegmentInfo findRobotSegmentInfo(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain, const unsigned start_sid) {
   double state_interp = 0;
-  auto segment = findClosestSegment(T_wr, chain, sid_start);
-  auto path_ref = interpolatePath(T_wr, chain->pose(segment.start_sid), chain->pose(segment.end_sid), state_interp);
-  return std::make_pair(segment.dir, chain->p(segment.start_sid) + state_interp * (chain->p(segment.end_sid) - chain->p(segment.start_sid)));
-}
-
-tactic::SegmentInfo findRobotSegmentInfo(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain) {
-  double state_interp = 0;
-  auto segment = findClosestSegment(T_wr, chain, chain->trunkSequenceId());
+  auto segment = findClosestSegment(T_wr, chain, start_sid);
   auto path_ref = interpolatePath(T_wr, chain->pose(segment.start_sid), chain->pose(segment.end_sid), state_interp);
   tactic::SegmentInfo segment_info;
   segment_info.start_p = chain->p(segment.start_sid) + state_interp * (chain->p(segment.end_sid) - chain->p(segment.start_sid));
   segment_info.dir = segment.dir;
   segment_info.direction_switch = segment.direction_switch;
   return segment_info;
+}
+
+tactic::SegmentInfo findRobotSegmentInfo(const lgmath::se3::Transformation& T_wr, const tactic::LocalizationChain::Ptr chain) {
+  return findRobotSegmentInfo(T_wr, chain, chain->trunkSequenceId());
 }
 
 lgmath::se3::Transformation interpolatePoses(const double interp,

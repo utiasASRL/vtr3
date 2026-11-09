@@ -120,6 +120,7 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
 
   tactic::EdgeTransform T_fw_lw_;
   tactic::VertexId leader_root_ = tactic::VertexId::Invalid();
+  unsigned leader_sid_ = 0;
   
   rclcpp::Client<FollowingRouteSrv>::SharedPtr leaderRouteSrv_;
   void leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture Future);
