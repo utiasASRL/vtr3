@@ -197,6 +197,7 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
     else if (config_->waypoint_selection == "arclength") {
       const auto final_leader_seg = findRobotSegmentInfo(leader_world_poses.back(), chain, leader_sid_);
       leader_sid_ = final_leader_seg.start_sid;
+      CLOG(DEBUG, "mpc.follower") << "Leader sid is " << leader_sid_ << " robot p is " << final_leader_seg.start_p;
       if (final_leader_seg.start_p < state_p) {
         CLOG(ERROR, "mpc.follower") << "The leader is believed to be behind the follower. Cannot proceed!";
         throw std::runtime_error("Leader p was behind follower.");
