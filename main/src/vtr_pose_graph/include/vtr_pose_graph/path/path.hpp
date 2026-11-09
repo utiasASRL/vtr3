@@ -212,7 +212,7 @@ double Path<GraphT>::p(unsigned seq_id) const {
   LockGuard lock(mutex_);
   if (seq_id >= sequence_.size()) {
     std::string err{"[Path][p] id out of range."};
-    CLOG(ERROR, "pose_graph") << err;
+    CLOG(ERROR, "pose_graph") << err << "sid=" << seq_id;
     throw std::range_error(err);
   }
   // We've already done up to this point

@@ -177,7 +177,7 @@ tactic::SegmentInfo findClosestSegment(const double p, const tactic::Localizatio
 
     //Handle end of path exceptions
     CLOG(DEBUG, "cbit.debug") << "Found the final segment";
-    return tactic::SegmentInfo(end_sid - 1, end_sid);
+    return tactic::SegmentInfo(end_sid - 2, end_sid - 1);
    
   }
 
