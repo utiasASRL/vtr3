@@ -30,7 +30,6 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <vtr_navigation_msgs/msg/graph_route.hpp>
-#include <vtr_navigation_msgs/srv/graph_state.hpp>
 #include <vtr_navigation_msgs/srv/following_route.hpp>
 #include "std_msgs/msg/float32.hpp"
 
@@ -46,7 +45,6 @@ class UnicycleMPCPathTrackerFollower : public UnicycleMPCPathTracker {
   using PathMsg = nav_msgs::msg::Path;
   using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
   using RouteMsg = vtr_navigation_msgs::msg::GraphRoute;
-  using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
   using FollowingRouteSrv = vtr_navigation_msgs::srv::FollowingRoute;
   using Transformation = lgmath::se3::Transformation;
   using FloatMsg = std_msgs::msg::Float32;
@@ -121,11 +119,10 @@ class UnicycleMPCPathTrackerFollower : public UnicycleMPCPathTracker {
 
   tactic::EdgeTransform T_fw_lw_;
   tactic::VertexId leader_root_ = tactic::VertexId::Invalid();
+  unsigned leader_sid_ = 0;
   
   rclcpp::Client<FollowingRouteSrv>::SharedPtr leaderRouteSrv_;
   void leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture Future);
-  rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
-  rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
   rclcpp::Time requestTime_;
 
   rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;

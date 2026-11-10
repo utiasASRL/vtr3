@@ -30,7 +30,6 @@ namespace vtr::path_planning {
 void BicycleMPCPathTrackerFollower::Config::loadConfig(BicycleMPCPathTrackerFollower::Config::Ptr config, 
 		           const rclcpp::Node::SharedPtr& node,
                            const std::string& prefix) {
-
   // MPC Configs:
   // Follower params
   config->leader_namespace = node->declare_parameter<std::string>(prefix + ".leader_namespace", config->leader_namespace);
@@ -76,18 +75,17 @@ BicycleMPCPathTrackerFollower::BicycleMPCPathTrackerFollower(const Config::Const
   const auto leader_graph_topic = config_->leader_namespace + "/vtr/graph_state_srv";
   const auto leader_route_topic = config_->leader_namespace + "/vtr/following_route";
   const auto leader_route_service = config_->leader_namespace + "/vtr/following_route_srv";
+  
   CLOG(INFO, "mpc.follower") << "Listening for MPC rollouts on " << leader_path_topic;
   CLOG(INFO, "mpc.follower") << "Requesting graph info from " << leader_graph_topic;
   CLOG(INFO, "mpc.follower") << "Listening for route on " << leader_route_topic;
   CLOG(INFO, "mpc.follower") << "Target separation: " << config->following_offset;
   CLOG(INFO, "mpc.follower") << "Robot's wheelbase: " << config->wheelbase << "m";
 
+
   leaderRolloutSub_ = robot_state->node->create_subscription<PathMsg>(leader_path_topic, rclcpp::QoS(1).best_effort().durability_volatile(), std::bind(&BicycleMPCPathTrackerFollower::onLeaderPath, this, _1));
-
+  
   leaderRouteSrv_ = robot_state->node->create_client<FollowingRouteSrv>(leader_route_service);
-
-  leaderGraphSrv_ = robot_state->node->create_client<GraphStateSrv>(leader_graph_topic);
-  followerGraphSrv_ = robot_state->node->create_client<GraphStateSrv>("vtr/graph_state_srv");
 
   estimatedDistancePub_ = robot_state->node->create_publisher<FloatMsg>("estimated_leader_distance", 10);
 }
@@ -99,7 +97,7 @@ void BicycleMPCPathTrackerFollower::loadMPCConfig(
   BicycleMPCPathTracker::loadMPCConfig(mpc_config, w_p_r_in_r, applied_vel, isReversing);
   mpc_config->Q_dist = isReversing ? config_->r_q_dist : config_->f_q_dist;
   mpc_config->distance = config_->following_offset;
-  mpc_config->distance_margin = config_->distance_margin;
+  mpc_config->distance_margin = config_->waypoint_selection == "arclength" ? std::numeric_limits<float>::max() : config_->distance_margin;
   mpc_config->recovery = false;
 }
 
@@ -129,16 +127,17 @@ bool BicycleMPCPathTrackerFollower::isMPCStateValid(CasadiMPC::Config::Ptr, cons
     return false;
   }
 
-  if (recentLeaderPath_ == nullptr) {
+  if (leaderPathInterp_ == nullptr) {
     CLOG_EVERY_N(1, WARNING, "cbit.control") << "Follower has received no path from the leader yet. Stopping";
     return false;
   }
 
   const auto leader_path_time = rclcpp::Time(recentLeaderPath_->header.stamp).nanoseconds();
+  
   const auto delta_t = curr_time - leader_path_time;
   if (delta_t > 1e9) {
     CLOG_EVERY_N(1, WARNING,"cbit.control") << "Follower has received no path from the leader in more than 1 second. Stopping\n Delay: "
-           << delta_t / 1e9;
+          << delta_t / 1e9;
     return false;
   }
 
@@ -181,8 +180,14 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
   mpcConfig->reference_poses.clear();
   auto referenceInfo = [&](){
     if(config_->waypoint_selection == "euclidean") {
-      const auto final_leader_p_value = findRobotP(leader_world_poses.back(), chain).second;
-      const auto initial_leader_p_value = findRobotP(leader_world_poses.front(), chain).second;
+      const auto final_leader_p_value = findRobotSegmentInfo(leader_world_poses.back(), chain, leader_sid_).state_p;
+      const auto initial_leader_segment = findRobotSegmentInfo(leader_world_poses.front(), chain, leader_sid_);
+      const auto initial_leader_p_value = initial_leader_segment.state_p;
+      leader_sid_ = initial_leader_segment.start_sid;
+      if (final_leader_p_value < state_p || initial_leader_p_value < state_p) {
+        CLOG(ERROR, "mpc.follower") << "The leader is believed to be behind the follower. Cannot proceed!";
+        throw std::runtime_error("Leader p was behind follower.");
+      }
       std::vector<double> max_p_vals;
       for (float i = 0; i < leader_world_poses.size(); i++) {
         max_p_vals.push_back(initial_leader_p_value + i / (leader_world_poses.size() - 1) * (final_leader_p_value - initial_leader_p_value));
@@ -190,8 +195,14 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
       return generateFollowerReferencePosesEuclidean(leader_world_poses, max_p_vals, chain, state_p, follower_mpc_config->distance);
     }
     else if (config_->waypoint_selection == "arclength") {
-      const auto[_, final_leader_p_value] = findRobotP(leader_world_poses.back(), chain, true);
-      return generateFollowerReferencePosesArclength(leader_world_poses, final_leader_p_value, chain, state_p, follower_mpc_config->distance);
+      const auto final_leader_seg = findRobotSegmentInfo(leader_world_poses.back(), chain, leader_sid_);
+      leader_sid_ = final_leader_seg.start_sid;
+      CLOG(DEBUG, "mpc.follower") << "Leader sid is " << leader_sid_ << " robot p is " << final_leader_seg.state_p;
+      if (final_leader_seg.state_p < state_p) {
+        CLOG(ERROR, "mpc.follower") << "The leader is believed to be behind the follower. Cannot proceed!";
+        throw std::runtime_error("Leader p was behind follower.");
+      }
+      return generateFollowerReferencePosesArclength(leader_world_poses, final_leader_seg.state_p, chain, state_p, follower_mpc_config->distance);
     }
     else {
       std::vector<double> p_rollout;
@@ -235,16 +246,15 @@ void BicycleMPCPathTrackerFollower::loadMPCPath(CasadiMPC::Config::Ptr mpcConfig
 
   }
   vis_->publishReferencePoses(referenceInfo.poses, curr_time);
-  leader_world_poses.insert(leader_world_poses.begin(), T_w_l );
+  leader_world_poses.insert(leader_world_poses.begin(), T_w_l);
   vis_->publishLeaderRollout(leader_world_poses, curr_time, mpcConfig->DT);
 
   mpcConfig->eop_index = end_ind;
   mpcConfig->up_barrier_q  = referenceInfo.barrier_q_max;
   mpcConfig->low_barrier_q = referenceInfo.barrier_q_min;
 
-  //Temporary to maintain functionality. TODO remove
-  mpcConfig->up_barrier_q.clear();
-  mpcConfig->low_barrier_q.clear();
+  CLOG(DEBUG, "mpc.follower") << "Max corridor width " << referenceInfo.barrier_q_max;
+
 }
 
 std::map<std::string, casadi::DM> BicycleMPCPathTrackerFollower::callSolver(CasadiMPC::Config::Ptr config) {
@@ -273,7 +283,7 @@ void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) 
     const Transformation T_w_p1 =  tfFromPoseMessage(path->poses[1].pose);
     const auto dt = rclcpp::Time(path->poses[1].header.stamp) - rclcpp::Time(path->poses[0].header.stamp);
     auto vel = (T_w_p0.inverse() * T_w_p1).vec() / dt.seconds();
-    if (vel(0, 0) > 1.0) {
+    if (vel(0, 0) > config_->max_lin_vel) {
       CLOG(WARNING, "mpc.follower") << "Erroneous velocity " << vel << " capped to nominal forward speed. DT=" << dt.seconds();
       leader_vel_ << config_->forward_vel, 0.0;
     } else {
@@ -285,8 +295,8 @@ void BicycleMPCPathTrackerFollower::onLeaderPath(const PathMsg::SharedPtr path) 
   leaderPathInterp_ = std::make_shared<const PathInterpolator>(path);
 }
 
-void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture Future){
-  auto result = Future.get();
+void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture future){
+  auto result = future.get();
   auto route = result->following_route;
   if (robot_state_->chain.valid() && robot_state_->chain->sequence().size() > 0 && route.ids.size() > 0 && route.ids.front() != leader_root_) { 
     leader_root_ = route.ids.front();
@@ -299,10 +309,20 @@ void BicycleMPCPathTrackerFollower::leaderRouteCallback(const rclcpp::Client<Fol
           std::make_shared<pose_graph::eval::mask::privileged::Eval<tactic::GraphBase>>(*graph_);
     auto connected = graph_->dijkstraSearch(follower_root, leader_root_, std::make_shared<pose_graph::eval::weight::ConstEval>(1, 1), eval);
     
+    for (const auto &seq_elem : robot_state_->chain->sequence()) {
+      if (seq_elem == leader_root_) break;
+      leader_sid_++;
+    }
+
+
     T_fw_lw_ = pose_graph::eval::ComposeTfAccumulator(connected->beginDfs(follower_root), connected->end(), tactic::EdgeTransform(true));    
     CLOG(INFO, "mpc.follower") << "Set relative transform to : " << T_fw_lw_;
     hasRequestedLeaderRoute_ = false;
 
+    if (leader_sid_ == robot_state_->chain->sequence().size()) {
+      leader_root_ = tactic::VertexId::Invalid();
+      CLOG(ERROR, "mpc.follower") << "Leader's root vertex was not found within the follower's chain. Undefined state.";
+    }
   }
   else{
     CLOG(WARNING, "mpc.follower") << "Leader route received but robot state chain is not valid or empty. Cannot update leader root.";

@@ -53,8 +53,7 @@ auto UnicycleMPCPathTracker::Config::fromROS(const rclcpp::Node::SharedPtr& node
       << ", r1: " << config->r1
       << ", r2: " << config->r2
       << ", racc1: " << config->racc1
-      << ", racc2: " << config->racc2
-      << ", alpha: " << config->alpha;
+      << ", racc2: " << config->racc2;
 
   return config;
 }

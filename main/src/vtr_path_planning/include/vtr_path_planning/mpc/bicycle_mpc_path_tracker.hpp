@@ -57,7 +57,7 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
     double r_racc2 = 0.0;
     double r_racc1 = 0.0;
 
-    int failure_threshold = 5;
+    int failure_threshold = -1;
     int recovery_steps = 15;
 
     double wheelbase = 0.55;
@@ -86,12 +86,6 @@ class BicycleMPCPathTracker : public BaseMPCPathTracker {
                             const bool isReversing) override;
 
   virtual bool isMPCStateValid(CasadiMPC::Config::Ptr mpcConfig, const tactic::Timestamp& curr_time) override;
-  
-  void loadMPCPath(CasadiMPC::Config::Ptr mpcConfig, const lgmath::se3::Transformation& T_w_p,
-                            const lgmath::se3::Transformation& T_p_r_extp,
-                            const double state_p,
-                            RobotState& robot_state, 
-                            const tactic::Timestamp& curr_time) override;
 
   virtual std::map<std::string, casadi::DM> callSolver(CasadiMPC::Config::Ptr config) override;
 

@@ -30,7 +30,6 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <vtr_navigation_msgs/msg/graph_route.hpp>
-#include <vtr_navigation_msgs/srv/graph_state.hpp>
 #include <vtr_navigation_msgs/srv/following_route.hpp>
 #include "std_msgs/msg/float32.hpp"
 
@@ -46,7 +45,6 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
   using PathMsg = nav_msgs::msg::Path;
   using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
   using RouteMsg = vtr_navigation_msgs::msg::GraphRoute;
-  using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
   using FollowingRouteSrv = vtr_navigation_msgs::srv::FollowingRoute;
   using Transformation = lgmath::se3::Transformation;
   using FloatMsg = std_msgs::msg::Float32;
@@ -56,11 +54,11 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
     PTR_TYPEDEFS(Config);
     std::string leader_namespace = "leader";
     
-    // Options: leader_vel euclidean
-    std::string waypoint_selection = "leader_vel";
+    // Options: leader_vel euclidean arclength
+    std::string waypoint_selection = "euclidean";
 
-    double following_offset = 0.5; //m
-    double distance_margin = 1.0;
+    double following_offset = 0.5; // m
+    double distance_margin = 1.0; // m
     double f_q_dist = 1.0;
     double r_q_dist = 1.0;
 
@@ -122,16 +120,14 @@ class BicycleMPCPathTrackerFollower : public BicycleMPCPathTracker {
 
   tactic::EdgeTransform T_fw_lw_;
   tactic::VertexId leader_root_ = tactic::VertexId::Invalid();
+  unsigned leader_sid_ = 0;
   
   rclcpp::Client<FollowingRouteSrv>::SharedPtr leaderRouteSrv_;
   void leaderRouteCallback(const rclcpp::Client<FollowingRouteSrv>::SharedFuture Future);
-  rclcpp::Client<GraphStateSrv>::SharedPtr leaderGraphSrv_;
-  rclcpp::Client<GraphStateSrv>::SharedPtr followerGraphSrv_;
   rclcpp::Time requestTime_;
-
-  rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;
   bool hasRequestedLeaderRoute_ = false;
 
+  rclcpp::Publisher<FloatMsg>::SharedPtr estimatedDistancePub_;
 
 };
 

@@ -63,6 +63,7 @@ public:
 
     void publishMPCRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt=0.25);
     void publishMPCRollout(const std::vector<std::pair<tactic::Timestamp, lgmath::se3::Transformation>>& mpc_prediction);
+    void publishStampedReferencePoses(const std::vector<std::pair<tactic::Timestamp, lgmath::se3::Transformation>>& mpc_prediction);
     void publishLeaderRollout(const std::vector<lgmath::se3::Transformation>& mpc_prediction, const tactic::Timestamp& stamp, double dt=0.25);
     void publishReferencePoses(const std::vector<lgmath::se3::Transformation>& reference_pose_vec, const tactic::Timestamp& stamp);
     void publishLocalReferencePoses(const std::vector<lgmath::se3::Transformation>& reference_pose_vec, const tactic::Timestamp& stamp);
@@ -70,6 +71,7 @@ public:
 private:
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr mpc_path_pub_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr ts_ref_pose_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr leader_path_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr robot_path_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
