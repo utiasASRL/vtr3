@@ -181,13 +181,13 @@
         averaging_num_steps: 2
         verbose: false
         max_iterations: 1
-        min_matched_ratio: 0.85
+        min_matched_ratio: 0.75
         gyro_cov: 1e-3
         visualize: true
       mapping:
         type: lidar.odometry_map_maintenance_v2
 
-        map_voxel_size: 0.6
+        map_voxel_size: 0.4
 
         crop_range_front: 40.0
         back_over_front_ratio: 0.5
