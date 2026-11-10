@@ -229,7 +229,7 @@ auto BaseMPCPathTracker::computeCommand_(RobotState& robot_state) -> Command {
   mpc_references.push_back(std::make_pair(stamp, T_w_p*T_p_r));
   mpc_references.push_back(std::make_pair(curr_time, T_w_p*T_p_r_extp));
 
-  for (int i = 0; i < mpcConfig->reference_poses.size(); i++) {
+  for (size_t i = 0; i < mpcConfig->reference_poses.size(); i++) {
     const auto& pose_i = mpcConfig->reference_poses[i].get_elements(); 
     CLOG(DEBUG, "cbit.control") << "Rolled out reference poses " << pose_i;
     mpc_references.push_back(std::make_pair(curr_time + (i+1)*mpcConfig->DT*1e9, T_w_p * tf_from_global(pose_i[0], pose_i[1], pose_i[2])));
