@@ -43,6 +43,7 @@
             racc2: 3.5
       bicycle_mpc_follower:
         type: bicycle_mpc_follower
+        waypoint_selection: arclength
         control_period: 100
         speed_scheduler:
           planar_curv_weight: 0.0
@@ -122,8 +123,7 @@
     bicycle_mpc_follower:
       leader_namespace:
         /prof_plum 
-      follow_distance: 10.0
-      waypoint_selection: arclength
+      follow_distance: 2.5
 
 /col_mustard/vtr/navigator:
   ros__parameters:
@@ -143,10 +143,10 @@
 
 /vtr/convoy_planning_node:
   ros__parameters:
-    mr_green:
+    prof_plum:
       leader_mpc: bicycle_mpc
       follower_mpc: bicycle_mpc_follower
-    prof_plum:
+    mr_green:
       leader_mpc: bicycle_mpc
       follower_mpc: bicycle_mpc_follower
     col_mustard:
