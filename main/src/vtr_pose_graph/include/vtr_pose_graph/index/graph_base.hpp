@@ -86,6 +86,26 @@ class GraphBase {
     return graph_.numberOfEdges();
   }
 
+  /**
+   * \brief Find the root vertex: the run-0 vertex with no incoming temporal
+   * edge. Returns VertexId::Invalid() if the graph is empty.
+   */
+  virtual VertexId root() const {
+    std::shared_lock lock(mutex_);
+    VertexId::Set temporal_to_ids;
+    VertexId::Set privileged_vids;
+    for (const auto& [eid, edge] : edges_) {
+      if (edge->isTemporal()) temporal_to_ids.insert(edge->to());
+      if (edge->isManual()) {
+        privileged_vids.insert(edge->from());
+        privileged_vids.insert(edge->to());
+      }
+    }
+    for (const auto& [vid, vertex] : vertices_)
+      if (privileged_vids.count(vid) && temporal_to_ids.count(vid) == 0) return vid;
+    return VertexId::Invalid();
+  }
+
   /** \brief Determine if this graph/subgraph contains a specific vertex */
   bool contains(const VertexId& v) const {
     std::shared_lock lock(mutex_);

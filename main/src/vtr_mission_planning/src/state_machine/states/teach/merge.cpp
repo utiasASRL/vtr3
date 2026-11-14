@@ -66,7 +66,7 @@ void Merge::onExit(StateMachine &state_machine, StateInterface &new_state) {
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
   const auto tactic = getTactic(state_machine);
-  if (closure_required_) tactic->connectToTrunk(true);
+  if (closure_required_) tactic->connectToTrunk(pose_graph::EdgeMode::Manual);
   tactic->setPath(PathType(), 0, tactic::EdgeTransform(true), true);
   tactic->setTrunk();  // reset target loc only
 

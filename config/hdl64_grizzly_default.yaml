@@ -332,7 +332,7 @@
         min_vel: 0.5
       mpc:
         # Controller Params
-        extrapolate_robot_pose: false
+        extrapolate_robot_pose: true
         mpc_verbosity: false
         forward_vel: 1.0
         max_lin_vel: 1.5

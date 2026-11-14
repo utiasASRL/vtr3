@@ -1,0 +1,13 @@
+# config/robot_registry.yaml
+# define robot name and id associations for run_ids (major_ids)
+# TODO: INTEGRATE WITH VTR_POSE_GRAPH
+robots:
+  - id: 0
+    name: mr_green
+  - id: 1
+    name: prof_plum
+  - id: 2
+    name: col_mustard
+  - id: 3
+    name: mrs_peacock
+    

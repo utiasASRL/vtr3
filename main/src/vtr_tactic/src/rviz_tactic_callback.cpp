@@ -37,6 +37,8 @@ RvizTacticCallback::RvizTacticCallback(const rclcpp::Node::SharedPtr& node,
 
   tf_static_bc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
   tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
+  tf_buffer_ = std::make_shared<tf2_ros::Buffer>(node->get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
   odometry_pub_ = node->create_publisher<OdometryMsg>("odometry", 10);
   loc_path_pub_ = node->create_publisher<PathMsg>("loc_path", 10);
 

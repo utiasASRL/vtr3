@@ -250,7 +250,6 @@ bool DataBubble<DataType>::unload(bool clear) {
                   [&](std::pair<const Timestamp, MessagePtr>& element) {
                     messages.push_back(element.second);
                   });
-
     accessor->write(messages);
   }
 
@@ -292,10 +291,10 @@ auto DataBubble<DataType>::retrieve(const Timestamp& time) -> MessagePtr {
   const LockGuard lock(mutex_);
   if (!loaded(time) && !load(time)) {
     CLOG(WARNING, "storage")
-        << "Message with time stamp " << time
-        << " does not exist in cache or disk. Return a nullptr.";
+        << "Message of type [" << typeid(DataType).name() << "] with time stamp " 
+        << time << " does not exist in cache or disk. Return a nullptr.";
     return nullptr;
-  }
+    }
   return time2message_map_.at(time);
 }
 

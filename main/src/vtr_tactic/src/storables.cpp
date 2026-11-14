@@ -19,6 +19,9 @@
 #include "vtr_tactic/storables.hpp"
 
 #include "vtr_common/conversions/ros_lgmath.hpp"
+#include "vtr_pose_graph_msgs/msg/edge.hpp"
+#include "vtr_pose_graph_msgs/msg/edge_type.hpp"
+
 
 namespace vtr {
 namespace tactic {

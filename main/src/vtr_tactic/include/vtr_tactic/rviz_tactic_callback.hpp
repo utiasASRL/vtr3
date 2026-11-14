@@ -22,6 +22,8 @@
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/buffer.h>
 
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
@@ -50,6 +52,8 @@ class RvizTacticCallback : virtual public TacticCallbackInterface {
  private:
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
   std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_bc_;
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
   rclcpp::Publisher<OdometryMsg>::SharedPtr odometry_pub_;
   rclcpp::Publisher<PathMsg>::SharedPtr loc_path_pub_;
 };

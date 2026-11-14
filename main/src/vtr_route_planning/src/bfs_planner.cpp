@@ -30,7 +30,8 @@ auto BFSPlanner::path(const VertexId &from, const VertexId::List &to,
   }
   idx.clear();
 
-  const auto priv_graph = getPrivilegedGraph();
+  // const auto priv_graph = getPrivilegedGraph();
+  const auto priv_graph = getTopologyGraph();
 
   auto rval = path(priv_graph, from, to.front());
   idx.push_back(rval.empty() ? 0 : (rval.size() - 1));
@@ -49,7 +50,8 @@ auto BFSPlanner::path(const VertexId &from, const VertexId::List &to,
 }
 
 auto BFSPlanner::path(const VertexId &from, const VertexId &to) -> PathType {
-  return path(getPrivilegedGraph(), from, to);
+  // return path(getPrivilegedGraph(), from, to);
+  return path(getTopologyGraph(), from, to);
 }
 
 auto BFSPlanner::getGraph() const -> GraphPtr {
@@ -68,7 +70,17 @@ auto BFSPlanner::getPrivilegedGraph() const -> GraphBasePtr {
   const auto graph = getGraph();
   using PrivEval = tactic::PrivilegedEvaluator<tactic::GraphBase>;
   auto priv_eval = std::make_shared<PrivEval>(*graph);
-  return graph->getSubgraph(priv_eval);
+  const auto root_vid = getGraph()->root();
+  return graph->getSubgraph(root_vid, priv_eval);
+}
+
+auto BFSPlanner::getTopologyGraph() const -> GraphBasePtr {
+  // get the current privileged graph
+  const auto graph = getGraph();
+  using TopEval = tactic::TopologyEvaluator<tactic::GraphBase>;
+  auto top_eval = std::make_shared<TopEval>(*graph);
+  const auto root_vid = getGraph()->root();
+  return graph->getSubgraph(root_vid, top_eval);
 }
 
 auto BFSPlanner::path(const GraphBasePtr &priv_graph, const VertexId &from,

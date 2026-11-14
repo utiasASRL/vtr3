@@ -144,6 +144,7 @@ bool Path<GraphT>::verifySequence() {
 template <class GraphT>
 void Path<GraphT>::expand() {
   LockGuard lock(mutex_);
+  if (sequence_.empty()) return;
   expand(sequence_.size() - 1);
 }
 
@@ -174,7 +175,7 @@ EdgeTransform Path<GraphT>::pose(unsigned seq_id) const {
   LockGuard lock(mutex_);
   if (seq_id >= sequence_.size()) {
     std::string err{"[Path][pose] id out of range."};
-    CLOG(ERROR, "pose_graph") << err;
+    CLOG(ERROR, "pose_graph") << "seq_id: " << seq_id << ", error: " << err;
     throw std::range_error(err);
   }
   // cheating so we can JIT expand
@@ -256,7 +257,7 @@ size_t Path<GraphT>::size() const {
 template <class GraphT>
 double Path<GraphT>::length() const {
   LockGuard lock(mutex_);
-  return dist(sequence_.size() - 1);
+  return sequence_.empty() ? 0 : dist(sequence_.size() - 1);
 }
 
 template <class GraphT>
@@ -265,6 +266,8 @@ void Path<GraphT>::initSequence() {
   poses_.reserve(sequence_.size());
   distances_.clear();
   distances_.reserve(sequence_.size());
+  p_vals_.clear();
+  p_vals_.reserve(sequence_.size());
 }
 
 /** \brief An iterator to a specified id along the path */

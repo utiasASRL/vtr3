@@ -76,6 +76,11 @@ EdgeTransform loadTransform(const std::string& source_frame,
     throw std::runtime_error(
           "Navigator: Throwing error for missing transform between " + source_frame +
           " and " + target_frame);
+  Eigen::Matrix4d T_rob_sens;
+  T_rob_sens << -1.0,  0.0,  0.0,  0.525,
+      0.0, -1.0,  0.0,  0.025,
+      0.0,  0.0,  1.0,  0.500,
+      0.0,  0.0,  0.0,  1.000;
 
   EdgeTransform T_source_target(Eigen::Matrix4d(Eigen::Matrix4d::Identity()));
   T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
@@ -111,7 +116,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   tactic_ = std::make_shared<Tactic>(Tactic::Config::fromROS(node_), pipeline,
                                      pipeline_output, graph_, graph_map_server_,
                                      std::make_shared<TaskQueueServer>(node_));
-  if (graph_->contains(VertexId(0, 0))) tactic_->setTrunk(VertexId(0, 0));
+  {
+    const auto root = graph_->root();
+    if (root.isValid()) tactic_->setTrunk(root);
+  }
 
   /// path planner
   auto planner_factory = std::make_shared<ROSPathPlannerFactory>(node_);

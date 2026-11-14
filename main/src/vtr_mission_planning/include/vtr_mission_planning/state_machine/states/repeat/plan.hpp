@@ -36,6 +36,9 @@ class Plan : public Repeat {
   void processGoals(StateMachine &, const Event &) override;
   void onExit(StateMachine &, StateInterface &) override;
   void onEntry(StateMachine &, StateInterface &) override;
+
+ private:
+  PathType path_;
 };
 
 }  // namespace repeat

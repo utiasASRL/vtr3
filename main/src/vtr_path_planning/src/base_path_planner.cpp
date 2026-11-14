@@ -97,7 +97,11 @@ void BasePathPlanner::process() {
     if (!*robot_state_->odometry_success) {
       CLOG(WARNING, "path_planning") << "Stopping robot because odometry failed!";
       callback_->commandReceived(Command());
-    } else {
+    } else if (!*robot_state_->localization_map_success) {
+      CLOG(WARNING, "path_planning") << "Stopping robot because there is no map to localize against!";
+      callback_->commandReceived(Command());
+    }
+    else {
       const auto command = computeCommand(*robot_state_);
       callback_->commandReceived(command);
     }

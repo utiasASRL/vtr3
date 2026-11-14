@@ -99,7 +99,7 @@ TEST_F(GraphStructureTestFixture, multiple_run_vertex_addition) {
 
 TEST_F(GraphStructureTestFixture, add_edge_to_empty_graph) {
   EXPECT_THROW(graph_->addEdge(VertexId(0, 0), VertexId(0, 1),
-                               EdgeType::Temporal, false, EdgeTransform(true)),
+                               EdgeType::Temporal, EdgeMode::Autonomous, EdgeTransform(true)),
                std::range_error);
 }
 
@@ -121,7 +121,7 @@ class EdgeTestFixture : public Test {
 TEST_F(EdgeTestFixture, iterator_test_bfs_dfs) {
   for (int idx = 0; idx < 9; ++idx)
     graph_->addEdge(VertexId(0, idx), VertexId(0, idx + 1), EdgeType::Temporal,
-                    true, EdgeTransform(true));
+                    EdgeMode::Manual, EdgeTransform(true));
 
   /// \note Never use iterator of a graph that may be used in a multi-threading
   /// context!! Call getsubgraph first to get only portion you need. This is
@@ -150,7 +150,7 @@ TEST_F(EdgeTestFixture, add_temporal_edge) {
   VertexId to(0, 1);
 
   auto edge =
-      graph_->addEdge(from, to, EdgeType::Temporal, true, EdgeTransform(true));
+      graph_->addEdge(from, to, EdgeType::Temporal, EdgeMode::Manual, EdgeTransform(true));
   EXPECT_TRUE(edge != nullptr);
   EXPECT_TRUE(edge->isTemporal());
   EXPECT_FALSE(edge->isSpatial());
@@ -168,7 +168,7 @@ TEST_F(EdgeTestFixture, add_spatial_edge) {
   VertexId to(0, 1);
 
   auto edge =
-      graph_->addEdge(from, to, EdgeType::Spatial, false, EdgeTransform(true));
+      graph_->addEdge(from, to, EdgeType::Spatial, EdgeMode::Autonomous, EdgeTransform(true));
   EXPECT_TRUE(edge != nullptr);
   EXPECT_FALSE(edge->isTemporal());
   EXPECT_TRUE(edge->isSpatial());
@@ -182,7 +182,7 @@ TEST_F(EdgeTestFixture, cross_run_edge) {
   VertexId from(1, 6);
 
   auto edge =
-      graph_->addEdge(from, to, EdgeType::Spatial, false, EdgeTransform(true));
+      graph_->addEdge(from, to, EdgeType::Spatial, EdgeMode::Autonomous, EdgeTransform(true));
   EXPECT_TRUE(edge != nullptr);
   EXPECT_FALSE(edge->isTemporal());
   EXPECT_TRUE(edge->isSpatial());
@@ -191,7 +191,7 @@ TEST_F(EdgeTestFixture, cross_run_edge) {
 
   // Cannot add from low runs to high ones
   EXPECT_THROW(
-      graph_->addEdge(to, from, EdgeType::Spatial, true, EdgeTransform(true)),
+      graph_->addEdge(to, from, EdgeType::Spatial, EdgeMode::Manual, EdgeTransform(true)),
       std::invalid_argument);
 }
 

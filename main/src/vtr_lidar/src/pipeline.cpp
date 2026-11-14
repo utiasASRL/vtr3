@@ -152,12 +152,18 @@ void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
     return;
   }
 
-
   // set the current map for localization
   if (submap_loc_ != nullptr) qdata->submap_loc = submap_loc_;
 
-  for (const auto &module : localization_)
+  for (const auto &module : localization_){
     module->run(*qdata0, *output0, graph, executor);
+    if (qdata->loc_map_recall_failed && *qdata->loc_map_recall_failed) {
+      CLOG(WARNING, "lidar.pipeline")
+        << "Localization map not available, skipping remaining "
+           "localization modules this frame.";
+      break;
+    }
+  }
 
   /// store the current map for localization
   if (qdata->submap_loc) submap_loc_ = qdata->submap_loc.ptr();

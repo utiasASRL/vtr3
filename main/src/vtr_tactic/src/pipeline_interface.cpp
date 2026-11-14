@@ -155,7 +155,10 @@ void PipelineInterface::runLocalization() {
   el::Helpers::setThreadName("tactic.localization");
   while (true) {
     auto qdata = localization_buffer_.pop();
-    if (qdata == nullptr) return;
+    if (qdata == nullptr) {
+      CLOG(ERROR, "tactic") << "qdata is nullptr";
+      return;
+    }
     CLOG(DEBUG, "tactic") << "Start running localization, timestamp: "
                           << *qdata->stamp;
     runLocalization_(qdata);

@@ -49,11 +49,11 @@ class PathTest : public Test {
       graph_->addVertex();
       for (int minor_idx = 0; minor_idx < 5 - 1; ++minor_idx) {
         graph_->addVertex();
-        graph_->addEdge(VertexId(major_idx, minor_idx), VertexId(major_idx, minor_idx + 1), EdgeType::Temporal, false, EdgeTransform(true));
+        graph_->addEdge(VertexId(major_idx, minor_idx), VertexId(major_idx, minor_idx + 1), EdgeType::Temporal, EdgeMode::Autonomous, EdgeTransform(true));
       }
     }
     // Add spatial edge across runs.
-    graph_->addEdge(VertexId(1, 2), VertexId(0, 1), EdgeType::Spatial, false, EdgeTransform(true));
+    graph_->addEdge(VertexId(1, 2), VertexId(0, 1), EdgeType::Spatial, EdgeMode::Autonomous, EdgeTransform(true));
 
     // set the edge's transform to something special;
     for (auto itr = graph_->beginEdge(); itr != graph_->endEdge(); ++itr) {
@@ -90,11 +90,11 @@ class MergedPathTest : public Test {
       graph_->addVertex();
       for (int minor_idx = 0; minor_idx < 4 - 1; ++minor_idx) {
         graph_->addVertex();
-        graph_->addEdge(VertexId(major_idx, minor_idx), VertexId(major_idx, minor_idx + 1), EdgeType::Temporal, false, EdgeTransform(true));
+        graph_->addEdge(VertexId(major_idx, minor_idx), VertexId(major_idx, minor_idx + 1), EdgeType::Temporal, EdgeMode::Autonomous, EdgeTransform(true));
       }
     }
     // Add merged loop closure edge across runs.
-    graph_->addEdge(VertexId(0, 3), VertexId(0, 0), EdgeType::Temporal, false, EdgeTransform(true));
+    graph_->addEdge(VertexId(0, 3), VertexId(0, 0), EdgeType::Temporal, EdgeMode::Autonomous, EdgeTransform(true));
 
 
     // set the edge's transform to something special;

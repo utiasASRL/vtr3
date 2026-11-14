@@ -55,18 +55,18 @@ class SubGraphTestFixture : public Test {
       for (int vidx = 1; vidx < 250; ++vidx) {
         graph_->addVertex();
         graph_->addEdge(VertexId(idx, vidx - 1), VertexId(idx, vidx),
-                        EdgeType::Temporal, idx == 0 ? true : false,
+                        EdgeType::Temporal, idx == 0 ? EdgeMode::Manual : EdgeMode::Autonomous,
                         EdgeTransform(true));
       }
     }
     // Add spatial edge across runs.
-    graph_->addEdge(VertexId(1, 1), VertexId(0, 0), EdgeType::Spatial, false,
+    graph_->addEdge(VertexId(1, 1), VertexId(0, 0), EdgeType::Spatial, EdgeMode::Autonomous,
                     EdgeTransform(true));
-    graph_->addEdge(VertexId(2, 2), VertexId(1, 2), EdgeType::Spatial, false,
+    graph_->addEdge(VertexId(2, 2), VertexId(1, 2), EdgeType::Spatial, EdgeMode::Autonomous,
                     EdgeTransform(true));
-    graph_->addEdge(VertexId(3, 1), VertexId(2, 1), EdgeType::Spatial, false,
+    graph_->addEdge(VertexId(3, 1), VertexId(2, 1), EdgeType::Spatial, EdgeMode::Autonomous,
                     EdgeTransform(true));
-    graph_->addEdge(VertexId(4, 2), VertexId(3, 2), EdgeType::Spatial, false,
+    graph_->addEdge(VertexId(4, 2), VertexId(3, 2), EdgeType::Spatial, EdgeMode::Autonomous,
                     EdgeTransform(true));
 
     // set the edge's transform to something special;

@@ -135,6 +135,7 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<const unsigned> sid_loc;
   Cache<EdgeTransform> T_r_v_loc;
   Cache<bool> loc_success;
+  Cache<bool> loc_map_recall_failed;
   Cache<const double> loc_time;
 
   // graph memory management cache args
@@ -151,6 +152,7 @@ struct OutputCache : std::enable_shared_from_this<OutputCache> {
 
   Cache<rclcpp::Node> node;
   Cache<LocalizationChain> chain;
+  Cache<bool> localization_map_success;
   Cache<bool> odometry_success;
 
   // Obstacle Costmap:

@@ -23,6 +23,10 @@
 #include "vtr_logging/logging_init.hpp"
 #include "vtr_pose_graph/serializable/rc_vertex.hpp"
 
+#include <boost/uuid/uuid.hpp>             // uuid class
+#include <boost/uuid/uuid_generators.hpp>  // generators
+#include <boost/uuid/uuid_io.hpp>          // streaming operators etc.
+
 #include "std_msgs/msg/string.hpp"
 
 using namespace ::testing;  // NOLINT
@@ -31,9 +35,16 @@ using namespace vtr::pose_graph;
 using namespace vtr::storage;
 
 using StringMsg = std_msgs::msg::String;
+using Id = boost::uuids::uuid;
+
+static boost::uuids::random_generator gen;
+const uint64_t ID2 = *reinterpret_cast<const uint64_t*>(gen().data);
+const uint64_t ID6 = *reinterpret_cast<const uint64_t*>(gen().data);
+const uint64_t ID16 = *reinterpret_cast<const uint64_t*>(gen().data);
+const uint64_t ID200 = *reinterpret_cast<const uint64_t*>(gen().data);
 
 TEST(TestSerializationVertex, construct_vertex_directly) {
-  VertexId id(2, 6);
+  VertexId id(ID2, ID6);
   Timestamp vertex_time(666);
   const auto name2accessor_map =
       std::make_shared<BubbleInterface::LockableName2AccessorMap>();
@@ -77,7 +88,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
 }
 
 TEST(TestSerializationVertex, simulate_load_vertex_from_disk) {
-  VertexId id(16, 200);
+  VertexId id(ID16, ID200);
   Timestamp vertex_time(666);
   const auto name2accessor_map =
       std::make_shared<BubbleInterface::LockableName2AccessorMap>();
