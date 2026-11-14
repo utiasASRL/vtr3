@@ -460,13 +460,24 @@ void RCGraph::saveVerticesLive() {
   {
     std::unique_lock lock(mutex_);
     VertexMsgAccessor accessor{fs::path{file_path_}, "vertices", "vtr_pose_graph_msgs/msg/Vertex"};
-    while (vertices_to_write_.size() > 0){
+    while (!vertices_to_write_.empty()){
       auto vertex = vertices_to_write_.front();
       vertices_to_write_.pop();
-      vertex->unload();
-      accessor.write(vertex->serialize());
+      accessor.write(vertex->serialize()); // write vertex row immediately
+      if (last_live_vertex_ && last_live_vertex_ != vertex)
+        last_live_vertex_->unload();    // previous vertex; data is complete
+      last_live_vertex_ = vertex;
     }
-  }  
+  }
+}
+
+void RCGraph::flushLiveVertex() {
+  if(read_only_) return;
+  std::unique_lock lock(mutex_);
+  if (!last_live_vertex_) return;
+  CLOG(DEBUG, "pose_graph") << "Flushing live vertex data " << last_live_vertex_->id();
+  // clear=false: the pipeline may still hold / use this vertex's data
+  last_live_vertex_->unload(/*clear=*/false);
 }
 
 void RCGraph::saveEdges() {

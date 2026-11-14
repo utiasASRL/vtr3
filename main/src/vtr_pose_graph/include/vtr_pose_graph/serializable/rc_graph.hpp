@@ -78,6 +78,12 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
 
   void save();
   void saveLive();
+  /**
+   * \brief Writes the stream data of the newest live vertex, which saveLive()
+   * defers until the next vertex is added (its data is still being inserted
+   * by the pipeline when it is created). Call at run end / before merging.
+   */
+  void flushLiveVertex();
 
   /** \brief Return a blank vertex with the next available Id */
   VertexPtr addVertex(const Timestamp& time);
@@ -163,6 +169,9 @@ class RCGraph : public Graph<RCVertex, RCEdge> {
   MapInfoMsg map_info_ = MapInfoMsg();
 
   std::queue<VertexPtr> vertices_to_write_;
+  /** \brief Newest vertex written by saveVerticesLive(); its stream data is
+   * unloaded once the next vertex arrives or flushLiveVertex() is called. */
+  VertexPtr last_live_vertex_ = nullptr;
   std::queue<EdgePtr> edges_to_write_;
   std::unordered_map<EdgeId, int> dangling_edges_;
   std::unordered_map<EdgeId, int> topology_edges_;
