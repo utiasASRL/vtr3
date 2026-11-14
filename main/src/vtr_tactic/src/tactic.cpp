@@ -107,6 +107,8 @@ void Tactic::addRun(const bool ephemeral) {
 
 void Tactic::finishRun() {
   smoother_.runBranchSmoothing();
+  // flush the final vertex's stream data (saveLive() defers the newest vertex)
+  graph_->flushLiveVertex();
   callback_->endRun();
 }
 
@@ -167,6 +169,9 @@ void Tactic::connectToTrunk(const EdgeMode& privileged) {
                        << branch_vid << ", privileged: " << std::boolalpha
                        << static_cast<unsigned>(privileged) << ", with T_to_from: "
                        << T_twig_branch.inverse().vec().transpose();
+  // flush the twig vertex's stream data (e.g. pointmap_ptr) before the merge
+  // edge hits disk, so anything watching the db sees the data first
+  graph_->flushLiveVertex();
   graph_->addEdge(twig_vid, branch_vid, EdgeType::Spatial, privileged,
                   T_twig_branch.inverse());
   graph_->saveLive();
