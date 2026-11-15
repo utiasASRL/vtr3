@@ -18,7 +18,11 @@
 #include "vtr_lidar/modules/odometry/odometry_liv_module.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <iomanip>
+#include <memory>
+#include <sstream>
 #include <string>
 
 #include "vtr_lidar/features/descriptor_matching.hpp"
@@ -26,6 +30,7 @@
 #include "vtr_lidar/features/range_error_eval.hpp"
 #include "vtr_lidar/features/reproj_error_eval.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
+#include "vtr_common/timing/stopwatch.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -43,6 +48,36 @@ struct FeatureMatch {
   int64_t t2 = 0;                                       /// observation time (ns)
   int curr_idx = -1;                                    /// index of the live feature
   int landmark_idx = -1;                                /// index in the feature map, -1 = previous scan
+};
+
+/// Stage timers of one scan, as in OdometryICPModule. Each stopwatch
+/// accumulates over all ICP steps of the scan; one DEBUG line per scan.
+struct StageTimers {
+  enum Stage { ASSOCIATION, KNN, FILTER, BUILD, SOLVE, ALIGN, CONVERGENCE,
+               FINAL, OUTPUTS, NUM_STAGES };
+  static constexpr const char* names[NUM_STAGES] = {
+      "association", "knn", "filter", "build", "solve", "align",
+      "convergence", "final", "outputs"};
+  std::vector<std::unique_ptr<vtr::common::timing::Stopwatch<>>> sw;
+  StageTimers() {
+    for (int i = 0; i < NUM_STAGES; ++i)
+      sw.emplace_back(std::make_unique<vtr::common::timing::Stopwatch<>>(false));
+  }
+  void start(const Stage s) { sw[s]->start(); }
+  void stop(const Stage s) { sw[s]->stop(); }
+  /// "association 1.2 | knn 3.4 | ... | total 56.7" [ms]
+  std::string summary() const {
+    std::ostringstream os;
+    os << std::fixed << std::setprecision(1);
+    double total = 0.0;
+    for (int i = 0; i < NUM_STAGES; ++i) {
+      const double ms = sw[i]->count<std::chrono::microseconds>() * 1e-3;
+      total += ms;
+      os << names[i] << " " << ms << " | ";
+    }
+    os << "total " << total;
+    return os.str();
+  }
 };
 
 template <class PointT>
@@ -381,16 +416,33 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
   auto kdtree = std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
   kdtree->buildIndex();
 
-  /// Initial alignment
+  /// Align the query points (and normals) with the current trajectory
+  /// estimate. With use_trajectory_estimation, every point is moved with the
+  /// interpolated pose at its own firing time. Otherwise every point uses the
+  /// pose at the end of the scan, so that pose is evaluated once and applied
+  /// to all points in one matrix product (same result, no per-point
+  /// interpolator).
+  const auto alignQueryPoints = [&]() {
+    if (config_->use_trajectory_estimation) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-  for (unsigned i = 0; i < query_points.size(); i++) {
-    const auto& qry_time = (config_->use_trajectory_estimation) ? query_points[i].timestamp : frame_end_time;
-    const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
-    const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-    const auto T_m_s = T_m_s_intp_eval->evaluate().matrix().cast<float>();
-    aligned_mat.block<4, 1>(0, i) = T_m_s * query_mat.block<4, 1>(0, i);
-    aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
-  }
+      for (unsigned i = 0; i < query_points.size(); i++) {
+        const auto& qry_time = query_points[i].timestamp;
+        const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
+        const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
+        const auto T_m_s = T_m_s_intp_eval->evaluate().matrix().cast<float>();
+        aligned_mat.block<4, 1>(0, i) = T_m_s * query_mat.block<4, 1>(0, i);
+        aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
+      }
+    } else {
+      const auto T_r_m_end_eval = trajectory->getPoseInterpolator(Time(frame_end_time));
+      const Eigen::Matrix4f T_m_s = inverse(compose(T_s_r_var, T_r_m_end_eval))->evaluate().matrix().cast<float>();
+      aligned_mat = T_m_s * query_mat;
+      aligned_norms_mat = T_m_s * query_norms_mat;
+    }
+  };
+
+  /// Initial alignment
+  alignQueryPoints();
 
   // Time at which a feature is used, the same rule as for the lidar points:
   // with use_trajectory_estimation, its own firing time (the trajectory is
@@ -402,6 +454,10 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
                ? std::clamp(t_feat, frame_start_time, frame_end_time)
                : frame_end_time;
   };
+
+  /// Stage timers (DEBUG line "Timing [ms] ..." at the end of the scan)
+  StageTimers timers;
+  timers.start(StageTimers::ASSOCIATION);
 
   // ════════════════════════════════════════════════════════════════════════
   //  Feature association (done once before the ICP loop)
@@ -553,6 +609,7 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       if (m.landmark_idx >= 0) matched_landmark[m.curr_idx] = m.landmark_idx;
   }
   const int num_visual_inliers = static_cast<int>(feature_matches.size());
+  timers.stop(StageTimers::ASSOCIATION);
 
   // ════════════════════════════════════════════════════════════════════════
   //  ICP optimisation loop (with visual cost terms)
@@ -570,7 +627,11 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
 
   CLOG(DEBUG, "lidar.odometry_liv") << "Start the ICP+LIV optimization loop.";
 
+  int num_steps = 0;
   for (int step = 0;; step++) {
+    timers.stop(StageTimers::FINAL);  // end of the previous step
+    num_steps = step + 1;
+    timers.start(StageTimers::KNN);
     /// Sample points
     std::vector<std::pair<size_t, size_t>> sample_inds;
     sample_inds.resize(query_points.size());
@@ -585,7 +646,10 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       kdtree->findNeighbors(result_set, aligned_points[sample_inds[i].first].data, search_params);
     }
 
+    timers.stop(StageTimers::KNN);
+
     /// Filter
+    timers.start(StageTimers::FILTER);
     std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
     filtered_sample_inds.reserve(sample_inds.size());
     for (size_t i = 0; i < sample_inds.size(); i++) {
@@ -600,7 +664,10 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       }
     }
 
+    timers.stop(StageTimers::FILTER);
+
     /// Build STEAM problem
+    timers.start(StageTimers::BUILD);
     SlidingWindowFilter problem(config_->num_threads);
 
     for (const auto& var : state_vars)
@@ -757,7 +824,10 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
           << ", step " << step << ")";
     }
 
+    timers.stop(StageTimers::BUILD);
+
     // ── Solve ──
+    timers.start(StageTimers::SOLVE);
     GaussNewtonSolver::Params params;
     params.verbose = config_->verbose;
     params.max_iterations = config_->max_iterations;
@@ -782,17 +852,11 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
     }
 
     Covariance covariance(solver);
+    timers.stop(StageTimers::SOLVE);
 
     /// Alignment update
-#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-    for (unsigned i = 0; i < query_points.size(); i++) {
-      const auto& qry_time = (config_->use_trajectory_estimation) ? query_points[i].timestamp : frame_end_time;
-      const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
-      const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-      const auto T_m_s = T_m_s_intp_eval->evaluate().matrix().cast<float>();
-      aligned_mat.block<4, 1>(0, i) = T_m_s * query_mat.block<4, 1>(0, i);
-      aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
-    }
+    timers.start(StageTimers::ALIGN);
+    alignQueryPoints();
 
     // Update all_tfs
     const auto T_m_s = T_m_s_eval->evaluate().matrix();
@@ -805,7 +869,10 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       all_tfs = temp;
     }
 
+    timers.stop(StageTimers::ALIGN);
+
     /// Check convergence
+    timers.start(StageTimers::CONVERGENCE);
     if (step > 0) {
       float avg_tot = step == 1 ? 1.0f : static_cast<float>(config_->averaging_num_steps);
       Eigen::Matrix4d T2 = all_tfs.block<4, 4>(all_tfs.rows() - 4, 0);
@@ -833,7 +900,10 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       }
     }
 
-    /// Last step
+    timers.stop(StageTimers::CONVERGENCE);
+
+    /// Last step (result, marginalization for the next prior)
+    timers.start(StageTimers::FINAL);
     if ((refinement_stage && step >= max_it - 1) ||
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
@@ -902,6 +972,9 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       break;
     }
   }
+
+  timers.stop(StageTimers::FINAL);
+  timers.start(StageTimers::OUTPUTS);
 
   // ── Health of the feature covariances ──
   // Median squared Mahalanobis distance of the feature residuals after the
@@ -1100,6 +1173,11 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
     // use = to overwrite the value injected by the pipeline
     qdata.prev_intensity_features = feat_copy;
   }
+  timers.stop(StageTimers::OUTPUTS);
+  CLOG(DEBUG, "lidar.odometry_liv")
+      << "Timing [ms] (" << num_steps << " steps, "
+      << query_points.size() << " points, " << num_visual_inliers
+      << " features): " << timers.summary();
   // clang-format on
 }
 
