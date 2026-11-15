@@ -86,7 +86,8 @@ IntensityFeatures IntensityFeatureManager::detectFeatures(
     const cv::Mat& intensity_image,
     const cv::Mat& pixel_to_point_index,
     const pcl::PointCloud<PointWithInfo>& cloud,
-    const cv::Mat& mask) {
+    const cv::Mat& mask,
+    const OusterProjector* projector) {
 
   IntensityFeatures features;
   features.image_width = intensity_image.cols;
@@ -220,6 +221,36 @@ IntensityFeatures IntensityFeatureManager::detectFeatures(
   cv::Mat valid_descriptors;
   std::vector<Eigen::Vector3d> valid_points;
   std::vector<int> valid_cloud_indices;
+  std::vector<Eigen::Matrix3d> valid_covs;
+
+  // Range of the lidar return at a pixel (0 = no return). Columns wrap
+  // around (360 deg image), rows do not.
+  const int idx_rows = pixel_to_point_index.rows;
+  const int idx_cols = pixel_to_point_index.cols;
+  const auto rangeAt = [&](int row, int col) -> double {
+    if (row < 0 || row >= idx_rows) return 0.0;
+    col = ((col % idx_cols) + idx_cols) % idx_cols;
+    const int idx = pixel_to_point_index.at<int>(row, col);
+    if (idx < 0 || idx >= static_cast<int>(cloud.size())) return 0.0;
+    const auto& q = cloud[idx];
+    if (!std::isfinite(q.x) || !std::isfinite(q.y) || !std::isfinite(q.z))
+      return 0.0;
+    return std::sqrt(static_cast<double>(q.x) * q.x +
+                     static_cast<double>(q.y) * q.y +
+                     static_cast<double>(q.z) * q.z);
+  };
+  // Slope of the range image [m / px] from the two neighbours of a pixel:
+  // central difference where both have a return, one-sided where only one
+  // has, 0 otherwise.
+  const auto slope = [](double prev, double here, double next) -> double {
+    if (prev > 0.0 && next > 0.0) return 0.5 * (next - prev);
+    if (next > 0.0) return next - here;
+    if (prev > 0.0) return here - prev;
+    return 0.0;
+  };
+  const double var_px = config_->feature_sigma_px * config_->feature_sigma_px;
+  const double var_range =
+      config_->feature_sigma_range * config_->feature_sigma_range;
 
   for (size_t i = 0; i < all_keypoints.size(); ++i) {
     const auto& kp = all_keypoints[i];
@@ -234,12 +265,58 @@ IntensityFeatures IntensityFeatureManager::detectFeatures(
     if (pt_idx < 0 || pt_idx >= static_cast<int>(cloud.size())) continue;
 
     const auto& pt = cloud[pt_idx];
+    if (!std::isfinite(pt.x) || !std::isfinite(pt.y) || !std::isfinite(pt.z))
+      continue;
     const float range = std::sqrt(pt.x * pt.x + pt.y * pt.y + pt.z * pt.z);
-    if (range < config_->min_range) continue;
+    if (range < config_->min_range || range > config_->max_range) continue;
+
+    // range of the 4 neighbours (0 = no return)
+    const double r_here = range;
+    const double r_left = rangeAt(row, col - 1);
+    const double r_right = rangeAt(row, col + 1);
+    const double r_up = rangeAt(row - 1, col);
+    const double r_down = rangeAt(row + 1, col);
+
+    // drop keypoints next to a depth edge: their range is not reliable
+    if (config_->edge_tol > 0.0f) {
+      bool on_edge = false;
+      for (const double r_nb : {r_left, r_right, r_up, r_down}) {
+        if (r_nb <= 0.0) continue;
+        if (std::max(r_here, r_nb) >
+            (1.0 + config_->edge_tol) * std::min(r_here, r_nb)) {
+          on_edge = true;
+          break;
+        }
+      }
+      if (on_edge) continue;
+    }
+
+    const Eigen::Vector3d p(pt.x, pt.y, pt.z);
+
+    // Covariance of the 3-D point: Sigma_p = J Sigma_z J^T, z = [u, v, rho]
+    //   Sigma_z = [ Sigma_uv        Sigma_uv g           ]
+    //             [ g^T Sigma_uv    sigma_rho^2 + g^T Sigma_uv g ]
+    // with Sigma_uv = sigma_px^2 I and g = d rho / d(u, v) the slope of the
+    // range image (g = 0: independent pixel and range noise).
+    if (projector != nullptr) {
+      Eigen::Vector2d g = Eigen::Vector2d::Zero();
+      if (config_->feature_range_gradient)
+        g << slope(r_left, r_here, r_right), slope(r_up, r_here, r_down);
+      Eigen::Matrix3d cov_z = Eigen::Matrix3d::Zero();
+      cov_z.topLeftCorner<2, 2>() = var_px * Eigen::Matrix2d::Identity();
+      cov_z.block<2, 1>(0, 2) = var_px * g;
+      cov_z.block<1, 2>(2, 0) = var_px * g.transpose();
+      cov_z(2, 2) = var_range + var_px * g.squaredNorm();
+      const Eigen::Matrix3d J = projector->backProjectJacobian(p);
+      Eigen::Matrix3d cov_p = J * cov_z * J.transpose();
+      cov_p = 0.5 * (cov_p + cov_p.transpose());
+      if (!cov_p.allFinite()) continue;
+      valid_covs.push_back(cov_p);
+    }
 
     valid_keypoints.push_back(kp);
     valid_descriptors.push_back(all_descriptors.row(static_cast<int>(i)));
-    valid_points.emplace_back(pt.x, pt.y, pt.z);
+    valid_points.push_back(p);
     valid_cloud_indices.push_back(pt_idx);
   }
 
@@ -252,6 +329,7 @@ IntensityFeatures IntensityFeatureManager::detectFeatures(
     features.points_3d.col(i) = valid_points[i];
     features.timestamps[i] = cloud[valid_cloud_indices[i]].timestamp;
   }
+  if (projector != nullptr) features.covs = std::move(valid_covs);
 
   return features;
 }

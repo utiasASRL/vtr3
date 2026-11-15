@@ -3,15 +3,14 @@
  * \author Wenda Zhao, Autonomous Space Robotics Lab (ASRL)
  *
  * Recalls the point map from the teach graph (same as the base module)
- * and additionally loads intensity features from the teach vertex,
- * populating qdata.map_intensity_features for visual localization.
+ * and additionally loads the merged visual feature submap of the same
+ * vertex (qdata.feature_map_loc) for visual localization.
  */
 #include "vtr_lidar/modules/localization/localization_map_recall_module_lv.hpp"
 
 #include "pcl_conversions/pcl_conversions.h"
 
 #include "vtr_lidar/data_types/intensity_feature_map.hpp"
-#include "vtr_lidar/data_types/intensity_features.hpp"
 #include "vtr_lidar/data_types/pointmap_pointer.hpp"
 
 namespace vtr {
@@ -102,9 +101,8 @@ void LocalizationMapRecallModuleLV::run_(QueryCache &qdata0, OutputCache &,
 
   // ════════════════════════════════════════════════════════════════════════
   //  Recall the merged visual feature submap from the map vertex
-  //  (same vertex as the point submap; falls back to the legacy per-vertex
-  //  single-frame intensity features when the teach graph has no feature
-  //  submap, e.g. graphs taught before feature mapping existed)
+  //  (same vertex as the point submap). Without one, localization runs on
+  //  the lidar points only.
   // ════════════════════════════════════════════════════════════════════════
   bool feature_map_recalled = false;
   try {
@@ -137,36 +135,10 @@ void LocalizationMapRecallModuleLV::run_(QueryCache &qdata0, OutputCache &,
     /// the teach odometry map frame, anchored like the point submap)
     qdata.T_v_m_feature_loc.emplace(
         pointmap_ptr.T_v_this_map * qdata.feature_map_loc->T_vertex_this());
-  }
-
-  // ════════════════════════════════════════════════════════════════════════
-  //  Legacy fallback: recall single-frame intensity features from the
-  //  current localization vertex
-  // ════════════════════════════════════════════════════════════════════════
-  if (!feature_map_recalled) {
-    auto vertex = graph->at(vid_loc);
-    const auto feat_msg = vertex->retrieve<IntensityFeatures>(
-        "intensity_features", "vtr_lidar_msgs/msg/IntensityFeatures");
-
-    if (feat_msg != nullptr) {
-      auto locked_feat_msg = feat_msg->sharedLocked();
-      const auto &features = locked_feat_msg.get().getData();
-
-      // Store as single-element vector (one vertex worth of features)
-      // The features' 3D points are stored in the vertex frame.
-      std::vector<IntensityFeatures> map_features;
-      map_features.push_back(features);
-      qdata.map_intensity_features.emplace(std::move(map_features));
-
-      CLOG(DEBUG, "lidar.localization_map_recall_lv")
-          << "Recalled " << features.size()
-          << " intensity features from vertex " << vid_loc;
-    } else {
-      CLOG(WARNING, "lidar.localization_map_recall_lv")
-          << "No intensity features found at vertex " << vid_loc;
-      // Emplace an empty vector so downstream modules know recall was attempted
-      qdata.map_intensity_features.emplace(std::vector<IntensityFeatures>{});
-    }
+  } else {
+    CLOG(WARNING, "lidar.localization_map_recall_lv")
+        << "No feature submap at vertex " << pointmap_ptr.map_vid
+        << ": no visual features for this localization.";
   }
 
   // ════════════════════════════════════════════════════════════════════════

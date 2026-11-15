@@ -13,6 +13,7 @@
 #include "vtr_lidar/data_types/intensity_features.hpp"
 
 #include "vtr_lidar/features/auto_exposure.hpp"
+#include "vtr_lidar/features/ouster_projector.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -42,6 +43,21 @@ struct IntensityFeatureManagerConfig {
   int edge_threshold = 4;     ///< ORB edgeThreshold (small for narrow cells)
   int patch_size = 15;        ///< ORB patchSize (small for narrow cells)
 
+  // Lifting keypoints to 3-D points
+  /// Drop keypoints next to a range jump larger than this fraction (a
+  /// 4-neighbour whose range differs by more than edge_tol, relative): the
+  /// keypoint lies between a near and a far surface. <= 0 disables.
+  float edge_tol = 0.05f;
+
+  // Feature covariance: Sigma_p = J Sigma_z J^T with z = [u, v, rho]
+  /// Keypoint noise [px], constant and isotropic (tuning parameter)
+  double feature_sigma_px = 1.2;
+  /// Range noise of a feature point [m]
+  double feature_sigma_range = 0.03;
+  /// Couple the pixel and range noise through the slope of the range image
+  /// (a keypoint off by a pixel reads the neighbouring pixel's range)
+  bool feature_range_gradient = true;
+
   // Matching
   float match_distance_threshold = 50.0f;  // Hamming distance
   float match_ratio_threshold = 0.8f;      // Lowe's ratio test
@@ -66,11 +82,14 @@ class IntensityFeatureManager {
 
   /// Detect ORB features and back-project to 3D
   /// @param mask  CV_8UC1 mask (255=valid, 0=masked); empty = no masking
+  /// @param projector  sensor model used for the covariance of each feature
+  ///                   point (nullptr = no covariances are computed)
   IntensityFeatures detectFeatures(
       const cv::Mat& intensity_image,
       const cv::Mat& pixel_to_point_index,
       const pcl::PointCloud<PointWithInfo>& cloud,
-      const cv::Mat& mask = cv::Mat());
+      const cv::Mat& mask = cv::Mat(),
+      const OusterProjector* projector = nullptr);
 
   /// Match two sets of features (frame-to-frame or live-to-map)
   /// Returns pairs of (query_idx, train_idx)

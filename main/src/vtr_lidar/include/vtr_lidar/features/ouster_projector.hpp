@@ -94,6 +94,16 @@ class OusterProjector {
   void projectionJacobian(const Eigen::Vector3d& p,
                           Eigen::Matrix<double, 2, 3>& du_dp) const;
 
+  /// 3×3 Jacobian F = ∂z/∂p of the measurement z = [u, v, ρ] (ρ = |p|): the
+  /// two rows of projectionJacobian and the unit vector to the point.
+  Eigen::Matrix3d measurementJacobian(const Eigen::Vector3d& p) const;
+
+  /// 3×3 Jacobian J = ∂p/∂z of the inverse measurement p = h⁻¹([u, v, ρ]),
+  /// in closed form, evaluated at the measured point p (see the .cpp for the
+  /// inverse projection and the derivation). Used to propagate the pixel /
+  /// range noise of a feature to its 3-D point: Σ_p = J Σ_z Jᵀ.
+  Eigen::Matrix3d backProjectJacobian(const Eigen::Vector3d& p) const;
+
   /// Back-project a pixel (u, v) + range to a 3-D point.
   Eigen::Vector3d backProject(const Eigen::Vector2d& uv, double range) const;
 

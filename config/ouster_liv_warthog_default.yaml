@@ -108,10 +108,10 @@
       preprocessing:
         - conversion
         - filtering
-        - intensity_feature_extraction
+        - intensity_feature_extraction   # liv
       odometry:
-        # - icp         
-        - livo       # lidar-inertial-visual odometry
+        # - icp               # lidar icp   
+        - livo            # lidar-inertial-visual odometry
         - mapping
         - feature_mapping   # sliding visual landmark map maintenance
         - vertex_test
@@ -120,9 +120,10 @@
         #- inter_exp_merging
         - memory
       localization:
-        - recall_lv
-        # - icp
-        - liv
+        # - recall      # lidar icp
+        - recall_lv     # liv
+        # - icp         # lidar icp 
+        - liv           # liv
         #- safe_corridor
         #- change_detection_sync
         - memory
@@ -141,7 +142,7 @@
       filtering:
         type: lidar.preprocessing
         num_threads: 8
-        crop_range: 60.0
+        crop_range: 40.0
 
         frame_voxel_size: 0.3 # grid subsampling voxel size
 
@@ -177,8 +178,16 @@
         nlevels: 4
         scale_factor: 1.2
         fast_threshold: 10
-        min_range: 0.5
-        max_range: 100.0
+        # lifting keypoints to 3-D points
+        min_range: 3.0          # [m] no features closer (robot body, people walking with the robot)
+        max_range: 40.0         # [m] no features further
+        edge_tol: 0.05          # no features next to a range jump > 5 % (<= 0 disables)
+        # feature covariance, Sigma_p = J Sigma_z J^T with z = [u, v, range]
+        feature_sigma_px: 0.8         # [px] keypoint noise, constant and isotropic. TUNE THIS: the odometry logs the
+                                      # median squared Mahalanobis distance of the feature residuals, 2.37 when right
+                                      # (smaller: sigma too large, larger: sigma too small)
+        feature_sigma_range: 0.03     # [m] range noise of a feature point
+        feature_range_gradient: true  # couple the pixel and range noise through the slope of the range image
         # Grid-based detection for spatial spread (parallel)
         grid_rows: 2            # 128/2 = 64 px per cell vertically
         grid_cols: 8            # 1024/8 = 128 px per cell horizontally
@@ -254,30 +263,47 @@
         max_iterations: 1
         min_matched_ratio: 0.0
         gyro_cov: 1e-3
-        use_gyro: true             # turn on/off gyro cost terms
+        use_gyro: true              # turn on/off gyro cost terms
 
         # lidar intensity visual parameters
         use_lidar:  true            # turn on/off lidar ICP cost terms, for debugging
-        use_visual: true           # turn on/off visual feature cost terms, for debugging
+        use_visual: true            # turn on/off visual feature cost terms, for debugging
+
+        # feature residual: 'p2p' (3-D point-to-point) or 'reproj' (2-D reprojection + range, the previous
+        # formulation, for comparison)
+        visual_residual: p2p
+        # Scale of the intensity-feature weights relative to the lidar weights. The lidar term is unchanged
+        # from the lidar-only pipeline (unit-less weight score * n n^T, about 1 per point); the feature weight is
+        #   W = intensity_feature_scale * (Sigma_landmark + R Sigma_feature R^T)^-1     (Sigma in m^2)
+        # Larger: the features count more. Tune by hand. With 9e-4 a feature counts like one lidar point along
+        # the beam (its range sigma is 0.03 m: 9e-4 / 0.03^2 = 1).
+        intensity_feature_scale: 9.0e-4
+        feature_cauchy_k: 3.0          # Cauchy scale on the Mahalanobis distance of a feature residual (<= 0: L2)
+
+        # feature association: mutual nearest neighbours, then MD-RANSAC (6-DoF)
+        match_max_hamming: 50.0        # max ORB Hamming distance of a match
+        ransac_max_iterations: 1000    # hypotheses at most (adaptive: stops at ransac_confidence)
+        ransac_confidence: 0.999
+        ransac_inlier_threshold: 3.0   # [px] and
+        ransac_inlier_range: 0.5       # [m]: a match is an inlier below both
+        ransac_min_inliers: 10
+        ransac_gn_steps: 3             # Gauss-Newton steps per hypothesis
+        ransac_refine_rounds: 2
+
+        # match against the sliding landmark map (falls back to the previous
+        # scan's features when too few map inliers)
+        use_feature_map_matching: true
+        map_match_min_matches: 10      # fewer map inliers -> try the previous scan
+
+        # visual_residual: reproj only
         sigma_pixel: 10.0
         reproj_loss_sigma: 0.5
-        ransac_max_iterations: 200
-        ransac_inlier_threshold: 3.0   # rotation-only minimal solver — keep loose so translational parallax doesn't reject inliers
-        ransac_min_inliers: 10
-
-        # feature map matching: build visual costs from the sliding landmark
-        # map (falls back to frame-to-frame when too few map matches)
-        use_feature_map_matching: true
-        map_match_max_px: 20.0         # gating: predicted-vs-observed reprojection (px)
-        map_match_min_matches: 10      # min map matches to use map-based costs
-
-        # range cost on visual matches (livo gn.range_residual)
         use_range_cost: true
         sigma_range: 0.1               # metres, 1-sigma
         range_loss_scale: 1.0          # Cauchy kernel width
 
         # kinematic regulation prior on each velocity knot (livo swf.kinematic_prior)
-        use_kinematic_regulation: true
+        use_kinematic_regulation: false
         kinematic_regulation_sigma:    # [lateral vel, vertical vel, roll rate, pitch rate]
           - 0.05
           - 0.01
@@ -300,7 +326,10 @@
       feature_mapping:
         type: lidar.visual_map_maintenance
 
-        feature_voxel_size: 0.1       # landmark dedup voxel size (m)
+        # association-driven merging: a feature that odometry matched updates its landmark; any other
+        # feature is merged into a landmark within the Mahalanobis gate with a close descriptor, or added
+        feature_merge_gate: 11.34     # squared Mahalanobis gate of a duplicate (99 % of chi^2 with 3 dof)
+        feature_merge_radius: 2.0     # landmarks further away are not compared (m)
         feature_life_time: 20.0       # scans without re-observation before expiry
         descriptor_merge_dist: 50.0   # max ORB Hamming distance to merge as same landmark
         visualize: true
@@ -384,11 +413,16 @@
         min_matched_ratio: 0.45
         target_loc_time: 15.0
         # Visual (LIV) parameters
-        use_visual: true
         use_lidar: true
+        use_visual: true
         # match against the merged feature submap recalled from the teach
-        # graph (falls back to single-frame features for old graphs)
+        # graph (lidar points only when a vertex has no feature submap)
         use_feature_map_matching: true
+        # feature residual, as the odometry: 'p2p' or 'reproj'
+        visual_residual: p2p
+        intensity_feature_scale: 9.0e-4   # scale of the feature weights relative to the lidar weights, see odometry.livo
+        feature_cauchy_k: 3.0          # Cauchy scale on the Mahalanobis distance (<= 0: L2)
+        # visual_residual: reproj only
         sigma_pixel: 3.0
         reproj_loss_sigma: 2.0
       safe_corridor:

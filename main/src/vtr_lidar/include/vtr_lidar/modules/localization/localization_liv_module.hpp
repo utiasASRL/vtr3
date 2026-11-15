@@ -2,20 +2,24 @@
  * \file localization_liv_module.hpp
  * \author Wenda Zhao, Autonomous Space Robotics Lab (ASRL)
  *
- * LIV localization module: combines ICP point-to-plane with visual
- * reprojection error in a single STEAM optimisation for the repeat phase.
+ * LIV localization module: combines ICP point-to-plane with lidar
+ * intensity-image features (3-D point-to-point residual, or optionally the
+ * 2-D reprojection error) in a single STEAM optimisation for the repeat
+ * phase.
  *
  * During localization the solver uses OptimizationProblem (single pose
  * variable T_r_v) rather than SlidingWindowFilter + trajectory, since
  * we only need to estimate a single pose (robot-to-vertex).
  *
  * Visual matching is performed between the live intensity features and
- * the map intensity features recalled from the teach vertex.  The map
- * features' 3D points are stored in the vertex frame, so we compose
- * T_s_r · T_r_v to map vertex-frame points into the current sensor frame
- * for reprojection.
+ * the merged feature submap recalled from the teach graph. Its landmarks
+ * are moved into the vertex frame with a fixed transform, so T_s_r · T_r_v
+ * relates them to the current sensor frame. Without a feature submap the
+ * module localizes on the lidar points only.
  */
 #pragma once
+
+#include <string>
 
 #include "steam.hpp"
 
@@ -64,16 +68,30 @@ class LocalizationLIVModule : public tactic::BaseModule {
     float calc_gy_bias_thresh = 1.0;
 
     // ────────── Visual (LIV) parameters ──────────
-    /// Reprojection error noise (pixels, isotropic σ)
+    /// Feature residual: "p2p" (3-D point-to-point with propagated
+    /// covariances, as the LIV odometry) or "reproj" (2-D reprojection)
+    std::string visual_residual = "p2p";
+    /// p2p: scale of the intensity-feature weights relative to the lidar
+    /// weights. The lidar term keeps the unit-less weight of the lidar-only
+    /// pipeline (normal_score · n nᵀ); the feature information is
+    ///   W = intensity_feature_scale · (Σ_landmark + R Σ_feature Rᵀ)⁻¹.
+    /// Larger: the features count more. Tune by hand.
+    double intensity_feature_scale = 9.0e-4;
+    /// p2p: Cauchy scale on the Mahalanobis distance of a feature residual,
+    /// before the intensity_feature_scale factor (<= 0: least squares)
+    double feature_cauchy_k = 3.0;
+    /// 1-σ of a feature position when it comes without a covariance [m]
+    double default_feature_sigma = 0.1;
+    /// reproj: reprojection error noise (pixels, isotropic σ)
     double sigma_pixel = 1.0;
-    /// Cauchy loss function kernel width for reprojection error
+    /// reproj: Cauchy loss function kernel width for reprojection error
     double reproj_loss_sigma = 1.0;
     /// Enable/disable visual cost terms
     bool use_visual = true;
     /// Enable/disable lidar ICP cost terms
     bool use_lidar = true;
     /// Match against the merged visual feature submap recalled from the
-    /// teach graph (falls back to single-frame features when unavailable)
+    /// teach graph (no visual costs when false or when no submap is stored)
     bool use_feature_map_matching = false;
 
     // ────────── OusterProjector sensor metadata ──────────

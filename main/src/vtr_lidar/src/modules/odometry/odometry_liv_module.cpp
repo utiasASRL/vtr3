@@ -2,11 +2,26 @@
  * \file odometry_liv_module.cpp
  * \author Wenda Zhao, Autonomous Space Robotics Lab (ASRL)
  *
- * LIV odometry: ICP point-to-plane + motion-distorted visual reprojection
- * error, combined in a single STEAM Gauss-Newton optimisation.
+ * LIV odometry: ICP point-to-plane + lidar intensity-image features, combined
+ * in a single STEAM Gauss-Newton optimisation.
+ *
+ * Features: mutual nearest-neighbour descriptor matching against the sliding
+ * landmark map (previous scan as fallback), MD-RANSAC (6-DoF) for outlier
+ * rejection, and a 3-D point-to-point residual per inlier
+ *     e = p_landmark - T_m_s(t) p_feature,
+ *     W = intensity_feature_scale * (Sigma_landmark + R Sigma_feature R^T)^-1
+ * The lidar term is the one of the lidar-only odometry, with its unit-less
+ * weight (normal_score * n n^T): with use_visual = false this module adds no
+ * feature term. intensity_feature_scale is a hand-tuned scalar that sets how
+ * much the features count against the lidar points.
  */
 #include "vtr_lidar/modules/odometry/odometry_liv_module.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <string>
+
+#include "vtr_lidar/features/descriptor_matching.hpp"
 #include "vtr_lidar/features/md_ransac.hpp"
 #include "vtr_lidar/features/range_error_eval.hpp"
 #include "vtr_lidar/features/reproj_error_eval.hpp"
@@ -17,12 +32,17 @@ namespace lidar {
 
 namespace {
 
-/// A match between a live feature and a landmark in the sliding feature map.
-struct MapMatch {
-  Eigen::Vector3d p_map = Eigen::Vector3d::Zero();  /// landmark in map frame
-  Eigen::Vector2d y2 = Eigen::Vector2d::Zero();     /// observed projection
-  int64_t t2 = 0;                                   /// observation time (ns)
-  double range2 = 0.0;                              /// measured range (m)
+/// An inlier match between a live feature and a landmark (of the sliding
+/// feature map, or a feature of the previous scan placed in the map frame).
+struct FeatureMatch {
+  Eigen::Vector3d p_ref = Eigen::Vector3d::Zero();      /// landmark, map frame
+  Eigen::Matrix3d cov_ref = Eigen::Matrix3d::Identity();  /// its covariance, map frame
+  Eigen::Vector3d p2 = Eigen::Vector3d::Zero();         /// measured point, sensor frame at t2
+  Eigen::Matrix3d cov2 = Eigen::Matrix3d::Identity();   /// its covariance, sensor frame
+  Eigen::Vector2d y2 = Eigen::Vector2d::Zero();         /// projection of p2 (reproj residual)
+  int64_t t2 = 0;                                       /// observation time (ns)
+  int curr_idx = -1;                                    /// index of the live feature
+  int landmark_idx = -1;                                /// index in the feature map, -1 = previous scan
 };
 
 template <class PointT>
@@ -86,16 +106,31 @@ auto OdometryLIVModule::Config::fromROS(
   config->reproj_loss_sigma = node->declare_parameter<double>(param_prefix + ".reproj_loss_sigma", config->reproj_loss_sigma);
   config->ransac_max_iterations = node->declare_parameter<int>(param_prefix + ".ransac_max_iterations", config->ransac_max_iterations);
   config->ransac_inlier_threshold = node->declare_parameter<double>(param_prefix + ".ransac_inlier_threshold", config->ransac_inlier_threshold);
+  config->ransac_inlier_range = node->declare_parameter<double>(param_prefix + ".ransac_inlier_range", config->ransac_inlier_range);
+  config->ransac_confidence = node->declare_parameter<double>(param_prefix + ".ransac_confidence", config->ransac_confidence);
+  config->ransac_gn_steps = node->declare_parameter<int>(param_prefix + ".ransac_gn_steps", config->ransac_gn_steps);
+  config->ransac_refine_rounds = node->declare_parameter<int>(param_prefix + ".ransac_refine_rounds", config->ransac_refine_rounds);
+  config->match_max_hamming = node->declare_parameter<double>(param_prefix + ".match_max_hamming", config->match_max_hamming);
   config->ransac_min_inliers = node->declare_parameter<int>(param_prefix + ".ransac_min_inliers", config->ransac_min_inliers);
   config->use_visual = node->declare_parameter<bool>(param_prefix + ".use_visual", config->use_visual);
   config->use_lidar = node->declare_parameter<bool>(param_prefix + ".use_lidar", config->use_lidar);
 
   // ── Feature map matching ──
   config->use_feature_map_matching = node->declare_parameter<bool>(param_prefix + ".use_feature_map_matching", config->use_feature_map_matching);
-  config->map_match_max_px = node->declare_parameter<double>(param_prefix + ".map_match_max_px", config->map_match_max_px);
   config->map_match_min_matches = node->declare_parameter<int>(param_prefix + ".map_match_min_matches", config->map_match_min_matches);
 
-  // ── Range cost on visual matches ──
+  // ── Visual residual ──
+  config->visual_residual = node->declare_parameter<std::string>(param_prefix + ".visual_residual", config->visual_residual);
+  if (config->visual_residual != "p2p" && config->visual_residual != "reproj") {
+    std::string err{"visual_residual must be 'p2p' or 'reproj'!"};
+    CLOG(ERROR, "lidar.odometry_liv") << err;
+    throw std::invalid_argument{err};
+  }
+  config->intensity_feature_scale = node->declare_parameter<double>(param_prefix + ".intensity_feature_scale", config->intensity_feature_scale);
+  config->feature_cauchy_k = node->declare_parameter<double>(param_prefix + ".feature_cauchy_k", config->feature_cauchy_k);
+  config->default_feature_sigma = node->declare_parameter<double>(param_prefix + ".default_feature_sigma", config->default_feature_sigma);
+
+  // ── Range cost on visual matches (reproj residual only) ──
   config->use_range_cost = node->declare_parameter<bool>(param_prefix + ".use_range_cost", config->use_range_cost);
   config->sigma_range = node->declare_parameter<double>(param_prefix + ".sigma_range", config->sigma_range);
   config->range_loss_scale = node->declare_parameter<double>(param_prefix + ".range_loss_scale", config->range_loss_scale);
@@ -210,6 +245,13 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
   if (!qdata.sliding_map_odo) {
     CLOG(INFO, "lidar.odometry_liv") << "First frame, simply return.";
     // clang-format off
+#if false
+    // undistorted raw point cloud
+    auto undistorted_raw_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.raw_point_cloud);
+    cart2pol(*undistorted_raw_point_cloud);
+    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
+#endif
+    // undistorted preprocessed point cloud
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.preprocessed_point_cloud);
     cart2pol(*undistorted_point_cloud);
     qdata.undistorted_point_cloud = undistorted_point_cloud;
@@ -350,195 +392,167 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
     aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
   }
 
+  // Time at which a feature is used, the same rule as for the lidar points:
+  // with use_trajectory_estimation, its own firing time (the trajectory is
+  // interpolated there); otherwise the end of the scan for every feature
+  // (rigid scan). Used by MD-RANSAC, the feature residuals and the
+  // undistortion of the features before the map update.
+  const auto featureTime = [&](const int64_t t_feat) -> int64_t {
+    return config_->use_trajectory_estimation
+               ? std::clamp(t_feat, frame_start_time, frame_end_time)
+               : frame_end_time;
+  };
+
   // ════════════════════════════════════════════════════════════════════════
-  //  Visual feature matching + MD-RANSAC (done once before the ICP loop)
+  //  Feature association (done once before the ICP loop)
+  //
+  //  Mutual nearest neighbours between the descriptors of the live features
+  //  and of the landmarks of the sliding feature map, then MD-RANSAC (6-DoF,
+  //  independent of the motion prior: every match has its own dt, or the
+  //  same dt for all of them with a rigid scan). If too few
+  //  map matches survive, the features of the previous scan are used instead.
+  //  Landmarks are timeless points in the odometry map frame. The previous
+  //  scan's features are stored in the sensor frame at the end of that scan
+  //  (= the start of this scan), so they become map-frame points with the
+  //  prior pose.
   // ════════════════════════════════════════════════════════════════════════
-  std::vector<VisualMatch> visual_matches;
-  std::vector<int> visual_inliers;
-  int num_visual_inliers = 0;
+  std::vector<FeatureMatch> feature_matches;
+  std::vector<int> matched_landmark;  // per live feature, -1 = none
+  std::string feature_source = "none";
 
   if (config_->use_visual && projector_ &&
       qdata.live_intensity_features.valid() &&
-      qdata.prev_intensity_features.valid()) {
-
+      !qdata.live_intensity_features->empty()) {
     const auto& curr_feat = *qdata.live_intensity_features;
-    const auto& prev_feat_ptr = *qdata.prev_intensity_features;
+    matched_landmark.assign(curr_feat.size(), -1);
 
-    if (prev_feat_ptr && !prev_feat_ptr->empty() && !curr_feat.empty()) {
-      // Match ORB features (current → previous)
-      auto bf_matcher = cv::BFMatcher::create(cv::NORM_HAMMING, false);
-      std::vector<std::vector<cv::DMatch>> knn_matches;
-      bf_matcher->knnMatch(curr_feat.descriptors, prev_feat_ptr->descriptors,
-                           knn_matches, 2);
+    const bool curr_has_covs = curr_feat.hasCovs();
+    const Eigen::Matrix3d default_cov =
+        config_->default_feature_sigma * config_->default_feature_sigma *
+        Eigen::Matrix3d::Identity();
 
-      // Time handling (livo two-knot scheme): after each successful
-      // optimization, the live features are motion-undistorted to
-      // frame_end_time using the *optimized* trajectory before being stored
-      // as prev_intensity_features (see end of run_). Treating p1 as
-      // observed exactly at frame_start_time is therefore correct, not an
-      // approximation, and all residuals span only the current scan
-      // duration. (Undistorting with the optimized trajectory avoids the
-      // feedback loop that undistorting with the prior velocity would
-      // create.) If the previous frame failed, the raw features are stored
-      // and the boundary assumption degrades gracefully to the old
-      // approximation.
+    // sensor pose at the start of the scan (the previous scan's optimised end)
+    const Eigen::Matrix4d T_s_m_start = T_s_r.matrix() * T_r_m_odo_prior.matrix();
+    const Eigen::Matrix4d T_m_s_start = T_s_m_start.inverse();
 
-      // Apply ratio test and build VisualMatch list
-      for (const auto& match_pair : knn_matches) {
-        if (match_pair.size() < 2) continue;
-        const auto& best = match_pair[0];
-        const auto& second = match_pair[1];
+    MdRansacParams ransac_params;
+    ransac_params.max_iterations = config_->ransac_max_iterations;
+    ransac_params.confidence = config_->ransac_confidence;
+    ransac_params.inlier_px = config_->ransac_inlier_threshold;
+    ransac_params.inlier_range = config_->ransac_inlier_range;
+    ransac_params.min_inliers = config_->ransac_min_inliers;
+    ransac_params.gn_steps = config_->ransac_gn_steps;
+    ransac_params.refine_rounds = config_->ransac_refine_rounds;
 
-        if (best.distance < 50.0f &&
-            best.distance < 0.8f * second.distance) {
-          const int curr_idx = best.queryIdx;
-          const int prev_idx = best.trainIdx;
+    // matches the live features against a set of landmarks given in the map
+    // frame and returns the MD-RANSAC inliers
+    const auto associate =
+        [&](const Eigen::Matrix<double, 3, Eigen::Dynamic>& ref_points,
+            const std::vector<Eigen::Matrix3d>& ref_covs,
+            const cv::Mat& ref_descriptors, const bool from_map,
+            int& num_candidates) {
+          std::vector<FeatureMatch> inliers;
+          std::vector<FeatureMatch> candidates;
+          std::vector<MdRansacMatch> ransac_matches;
+          const auto pairs = matchMutualNN(curr_feat.descriptors, ref_descriptors,
+                                           config_->match_max_hamming);
+          candidates.reserve(pairs.size());
+          ransac_matches.reserve(pairs.size());
+          for (const auto& pair : pairs) {
+            const int curr_idx = pair.first;
+            const int ref_idx = pair.second;
 
-          // Validate 3D points
-          const Eigen::Vector3d& p1 = prev_feat_ptr->points_3d.col(prev_idx);
-          if (p1.norm() < 0.5) continue;
+            const Eigen::Vector3d p2 = curr_feat.points_3d.col(curr_idx);
+            if (!p2.allFinite() || p2.norm() < 0.5) continue;
+            const Eigen::Vector3d p_ref = ref_points.col(ref_idx);
+            if (!p_ref.allFinite()) continue;
+            // analytical projection of the live observation (the coordinate
+            // system of projectPoint, not the raw LUT pixel)
+            Eigen::Vector2d y2;
+            if (!projector_->projectPoint(p2, y2)) continue;
 
-          const Eigen::Vector3d& p2 = curr_feat.points_3d.col(curr_idx);
-          if (p2.norm() < 0.5) continue;
+            FeatureMatch m;
+            m.p_ref = p_ref;
+            m.cov_ref = ref_covs[ref_idx];
+            m.p2 = p2;
+            m.cov2 = curr_has_covs ? curr_feat.covs[curr_idx] : default_cov;
+            m.y2 = y2;
+            m.t2 = (curr_idx < static_cast<int>(curr_feat.timestamps.size()))
+                       ? curr_feat.timestamps[curr_idx]
+                       : frame_end_time;
+            m.curr_idx = curr_idx;
+            m.landmark_idx = from_map ? ref_idx : -1;
 
-          // Analytical projections (must match projectPoint's coord system
-          // because MD-RANSAC and ReprojErrorEval call projectPoint
-          // internally — do NOT use raw LUT pixel coordinates here).
-          Eigen::Vector2d y1_proj, y2_proj;
-          if (!projector_->projectPoint(p1, y1_proj)) continue;
-          if (!projector_->projectPoint(p2, y2_proj)) continue;
+            MdRansacMatch r;
+            // landmark in the sensor frame at the start of the scan
+            r.p1 = (T_s_m_start * p_ref.homogeneous()).head<3>();
+            r.p2 = p2;
+            r.dt = static_cast<double>(featureTime(m.t2) - frame_start_time) * 1e-9;
 
-          VisualMatch vm;
-          vm.p1 = p1;            // undistorted to frame_start_time (prev scan end)
-          vm.p2 = p2;            // measured 3-D point at t2 (curr frame)
-          vm.y1 = y1_proj;
-          vm.y2 = y2_proj;
+            candidates.push_back(m);
+            ransac_matches.push_back(r);
+          }
+          num_candidates = static_cast<int>(candidates.size());
+          if (candidates.size() < 3) return inliers;
 
-          // Feature timestamps (absolute, ns). p1 lives exactly at the scan
-          // boundary (frame_start_time) thanks to the undistortion above, so
-          // dt is non-negative and bounded by scan_duration.
-          vm.timestamp_1 = frame_start_time;
-          vm.timestamp_2 = (curr_idx < static_cast<int>(curr_feat.timestamps.size()))
-                               ? curr_feat.timestamps[curr_idx]
-                               : frame_end_time;
+          const auto ransac =
+              mdRansacSolve(ransac_matches, *projector_, ransac_params);
+          if (!ransac.success) return inliers;
+          inliers.reserve(ransac.inliers.size());
+          for (const int i : ransac.inliers) inliers.push_back(candidates[i]);
+          return inliers;
+        };
 
-          vm.dt = static_cast<double>(vm.timestamp_2 - vm.timestamp_1) * 1e-9;
-          if (vm.dt < 1e-6) vm.dt = 1e-6;  // safety floor
-
-          vm.prev_idx = prev_idx;
-          vm.curr_idx = curr_idx;
-
-          visual_matches.push_back(vm);
-        }
-      }
-
+    // ── (1) sliding feature map ──
+    int num_map_candidates = 0;
+    if (config_->use_feature_map_matching && qdata.sliding_feature_map_odo &&
+        qdata.sliding_feature_map_odo->size() > 0) {
+      const auto& feature_map = *qdata.sliding_feature_map_odo;
+      std::vector<Eigen::Matrix3d> map_covs;
+      map_covs.reserve(feature_map.size());
+      for (const auto& lm : feature_map.landmarks()) map_covs.push_back(lm.cov);
+      feature_matches = associate(feature_map.points(), map_covs,
+                                  feature_map.descriptors(), true,
+                                  num_map_candidates);
+      if (!feature_matches.empty()) feature_source = "map";
       CLOG(DEBUG, "lidar.odometry_liv")
-          << "Visual matches: " << visual_matches.size();
+          << "Feature map matches: " << feature_matches.size() << " inliers / "
+          << num_map_candidates << " (map size " << feature_map.size() << ")";
+    }
 
-      // Run MD-RANSAC
-      if (visual_matches.size() >= 3) {
-        Eigen::Matrix<double, 6, 1> ransac_omega;
-        bool ransac_ok = mdRansacSolve(visual_matches, 
-                                       *projector_,
-                                       config_->ransac_max_iterations,
-                                       config_->ransac_inlier_threshold,
-                                       config_->ransac_min_inliers,
-                                       visual_inliers, 
-                                       ransac_omega);
+    // ── (2) too few map inliers: the previous scan's features ──
+    if (static_cast<int>(feature_matches.size()) < config_->map_match_min_matches &&
+        qdata.prev_intensity_features.valid() &&
+        *qdata.prev_intensity_features &&
+        !(*qdata.prev_intensity_features)->empty()) {
+      const auto& prev_feat = **qdata.prev_intensity_features;
+      const Eigen::Matrix3d R_m_s_start = T_m_s_start.block<3, 3>(0, 0);
+      const Eigen::Matrix<double, 3, Eigen::Dynamic> prev_points_m =
+          (R_m_s_start * prev_feat.points_3d).colwise() +
+          T_m_s_start.block<3, 1>(0, 3);
+      std::vector<Eigen::Matrix3d> prev_covs_m(prev_feat.size(), default_cov);
+      if (prev_feat.hasCovs())
+        for (int i = 0; i < prev_feat.size(); ++i)
+          prev_covs_m[i] =
+              R_m_s_start * prev_feat.covs[i] * R_m_s_start.transpose();
 
-        if (ransac_ok) {
-          num_visual_inliers = static_cast<int>(visual_inliers.size());
-          CLOG(DEBUG, "lidar.odometry_liv")
-              << "MD-RANSAC: " << num_visual_inliers << " / "
-              << visual_matches.size() << " inliers";
-        } else {
-          CLOG(WARNING, "lidar.odometry_liv")
-              << "MD-RANSAC failed (" << visual_inliers.size()
-              << " / " << visual_matches.size() << ")";
-          visual_inliers.clear();
-        }
+      int num_prev_candidates = 0;
+      auto prev_matches = associate(prev_points_m, prev_covs_m,
+                                    prev_feat.descriptors, false,
+                                    num_prev_candidates);
+      CLOG(DEBUG, "lidar.odometry_liv")
+          << "Previous scan matches: " << prev_matches.size() << " inliers / "
+          << num_prev_candidates;
+      if (prev_matches.size() > feature_matches.size()) {
+        feature_matches = std::move(prev_matches);
+        feature_source = "previous scan";
       }
     }
+
+    for (const auto& m : feature_matches)
+      if (m.landmark_idx >= 0) matched_landmark[m.curr_idx] = m.landmark_idx;
   }
-
-  // ════════════════════════════════════════════════════════════════════════
-  //  Feature map matching (live features ↔ sliding visual landmark map)
-  //
-  //  Map landmarks are timeless points in the odometry map frame, so the
-  //  visual costs become e = y2 − f(T_s_m(t2) · p_map): one interpolation at
-  //  the feature's observation time, no scan-boundary bookkeeping, and the
-  //  multi-scan landmarks provide longer feature tracks than frame-to-frame.
-  //  Outliers are gated by reprojection through the prior-extrapolated pose.
-  // ════════════════════════════════════════════════════════════════════════
-  std::vector<MapMatch> map_matches;
-
-  if (config_->use_visual && config_->use_feature_map_matching && projector_ &&
-      qdata.live_intensity_features.valid() && qdata.sliding_feature_map_odo &&
-      qdata.sliding_feature_map_odo->size() > 0) {
-    const auto& curr_feat = *qdata.live_intensity_features;
-    const auto& feature_map = *qdata.sliding_feature_map_odo;
-
-    if (!curr_feat.empty()) {
-      const cv::Mat map_descriptors = feature_map.descriptors();
-      const auto map_points = feature_map.points();  // 3 x N, map frame
-
-      auto bf_matcher_map = cv::BFMatcher::create(cv::NORM_HAMMING, false);
-      std::vector<std::vector<cv::DMatch>> knn_map_matches;
-      bf_matcher_map->knnMatch(curr_feat.descriptors, map_descriptors,
-                               knn_map_matches, 2);
-
-      // predicted sensor-from-map transform at scan end for outlier gating
-      const Eigen::Matrix4d T_s_m_pred =
-          T_s_r.matrix() *
-          trajectory->getPoseInterpolator(Time(frame_end_time))
-              ->evaluate().matrix();
-
-      for (const auto& match_pair : knn_map_matches) {
-        if (match_pair.size() < 2) continue;
-        const auto& best = match_pair[0];
-        const auto& second = match_pair[1];
-        if (best.distance > 50.0f || best.distance > 0.8f * second.distance)
-          continue;
-
-        const int curr_idx = best.queryIdx;
-        const int map_idx = best.trainIdx;
-
-        const Eigen::Vector3d& p2 = curr_feat.points_3d.col(curr_idx);
-        if (p2.norm() < 0.5) continue;
-        const Eigen::Vector3d p_map = map_points.col(map_idx);
-
-        // analytical projection of the live observation (same convention as
-        // the frame-to-frame path)
-        Eigen::Vector2d y2_proj;
-        if (!projector_->projectPoint(p2, y2_proj)) continue;
-
-        // gate by predicted reprojection error
-        const Eigen::Vector3d p_s_pred =
-            (T_s_m_pred * p_map.homogeneous()).head<3>();
-        Eigen::Vector2d y_pred;
-        if (!projector_->projectPoint(p_s_pred, y_pred)) continue;
-        if ((y_pred - y2_proj).norm() > config_->map_match_max_px) continue;
-
-        MapMatch m;
-        m.p_map = p_map;
-        m.y2 = y2_proj;
-        m.t2 = (curr_idx < static_cast<int>(curr_feat.timestamps.size()))
-                   ? curr_feat.timestamps[curr_idx]
-                   : frame_end_time;
-        m.range2 = p2.norm();
-        map_matches.push_back(m);
-      }
-
-      CLOG(DEBUG, "lidar.odometry_liv")
-          << "Feature map matches: " << map_matches.size() << " (map size "
-          << feature_map.size() << ")";
-    }
-  }
-
-  // Use map-based visual costs when enough map matches survived gating;
-  // otherwise fall back to the frame-to-frame inliers.
-  const bool use_map_costs =
-      static_cast<int>(map_matches.size()) >= config_->map_match_min_matches;
+  const int num_visual_inliers = static_cast<int>(feature_matches.size());
 
   // ════════════════════════════════════════════════════════════════════════
   //  ICP optimisation loop (with visual cost terms)
@@ -669,9 +683,47 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       }
     }
 
-    // ── Visual reprojection + range error cost terms (lidar intensity image) ──
-    if (config_->use_visual && projector_ &&
-        (use_map_costs || !visual_inliers.empty())) {
+    // ── Intensity-image feature cost terms ──
+    if (config_->use_visual && !feature_matches.empty() &&
+        config_->visual_residual == "p2p") {
+      // 3-D point-to-point: e = p_landmark - T_m_s(t) p_feature, with
+      //   W = scale (Sigma_landmark + R_m_s Sigma_feature R_m_s^T)^-1
+      // recomputed every step with the current rotation, scale =
+      // intensity_feature_scale. The Cauchy scale is multiplied by sqrt(scale)
+      // so that feature_cauchy_k acts on the Mahalanobis distance (steam
+      // applies the loss to the whitened error, which the scale factor
+      // multiplies by sqrt(scale)).
+      const double scale = config_->intensity_feature_scale;
+      BaseLossFunc::Ptr loss_func_feat = nullptr;
+      if (config_->feature_cauchy_k > 0.0)
+        loss_func_feat = CauchyLossFunc::MakeShared(config_->feature_cauchy_k * std::sqrt(scale));
+      else
+        loss_func_feat = L2LossFunc::MakeShared();
+
+      int num_added = 0;
+      for (const auto& m : feature_matches) {
+        const auto T_r_m_t_eval = trajectory->getPoseInterpolator(Time(featureTime(m.t2)));
+        const auto T_m_s_t_eval = inverse(compose(T_s_r_var, T_r_m_t_eval));
+        const Eigen::Matrix3d R_m_s = T_m_s_t_eval->evaluate().matrix().block<3, 3>(0, 0);
+
+        const Eigen::Matrix3d cov = m.cov_ref + R_m_s * m.cov2 * R_m_s.transpose();
+        Eigen::Matrix3d W = scale * cov.inverse();
+        W = 0.5 * (W + W.transpose());
+        if (!W.allFinite()) continue;
+        const auto noise_model_feat = StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
+
+        const auto error_func = p2p::p2pError(T_m_s_t_eval, m.p_ref, m.p2);
+        const auto cost = WeightedLeastSqCostTerm<3>::MakeShared(error_func, noise_model_feat, loss_func_feat);
+        problem.addCostTerm(cost);
+        num_added++;
+      }
+
+      CLOG(DEBUG, "lidar.odometry_liv")
+          << "Added " << num_added << " feature point-to-point cost terms ("
+          << feature_source << ", step " << step << ")";
+    } else if (config_->use_visual && projector_ && !feature_matches.empty()) {
+      // 2-D reprojection (+ optional range) residual, kept for comparison:
+      //   e = y2 − f(T_s_m(t2) · p_landmark)
       const Eigen::Matrix2d meas_cov =
           config_->sigma_pixel * config_->sigma_pixel * Eigen::Matrix2d::Identity();
       const auto noise_model_vis = StaticNoiseModel<2>::MakeShared(meas_cov);
@@ -682,97 +734,27 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       const auto noise_model_range = StaticNoiseModel<1>::MakeShared(range_cov);
       const auto loss_func_range = CauchyLossFunc::MakeShared(config_->range_loss_scale);
 
-      if (use_map_costs) {
-        // ── Map-based costs: e = y2 − f(T_s_m(t2) · p_map) ──
-        // Landmarks are timeless points in the map frame, so only the
-        // observation side is interpolated; no scan-boundary handling.
-        for (const auto& m : map_matches) {
-          const int64_t t_meas =
-              config_->use_trajectory_estimation
-                  ? std::clamp(m.t2, frame_start_time, frame_end_time)
-                  : frame_end_time;
+      for (const auto& m : feature_matches) {
+        auto T_r_m_t_eval = trajectory->getPoseInterpolator(Time(featureTime(m.t2)));
+        auto T_s_m_eval = compose(T_s_r_var, T_r_m_t_eval);
 
-          auto T_r_m_t_eval =
-              trajectory->getPoseInterpolator(Time(static_cast<int64_t>(t_meas)));
-          auto T_s_m_eval = compose(T_s_r_var, T_r_m_t_eval);
-
-          auto error_func = ReprojErrorEval::MakeShared(
-              T_s_m_eval, m.p_map, m.y2, projector_);
-          auto cost = WeightedLeastSqCostTerm<2>::MakeShared(
-              error_func, noise_model_vis, loss_func_vis);
-          problem.addCostTerm(cost);
-
-          // Range error: e = ||p2|| - ||T_s_m(t2) · p_map||
-          if (config_->use_range_cost && m.range2 > 0.0 &&
-              std::isfinite(m.range2)) {
-            auto range_error_func = RangeErrorEval::MakeShared(
-                T_s_m_eval, m.p_map, m.range2);
-            auto range_cost = WeightedLeastSqCostTerm<1>::MakeShared(
-                range_error_func, noise_model_range, loss_func_range);
-            problem.addCostTerm(range_cost);
-          }
-        }
-
-        CLOG(DEBUG, "lidar.odometry_liv")
-            << "Added " << map_matches.size()
-            << " map-based visual cost terms (step " << step << ")";
-      } else {
-      for (const int idx : visual_inliers) {
-        const auto& m = visual_matches[idx];
-
-        // When continuous-time estimation is off, evaluate the visual
-        // residual using only the two knot poses (frame_start_time and
-        // frame_end_time). This decouples the body velocity state from
-        // the visual cost: a single image pair cannot disambiguate
-        // "fast-then-slow" from constant velocity, so letting the visual
-        // residual depend on per-feature t_meas leaves velocity
-        // unobservable and the 24×24 Hessian rank-deficient → solver
-        // oscillates frame-to-frame.
-        const int64_t t_meas =
-            config_->use_trajectory_estimation
-                ? std::clamp(m.timestamp_2, frame_start_time, frame_end_time)
-                : frame_end_time;
-        
-        // NOTE: we need to take care of the time offset later. This is the reason we use md_ransac
-        // const int64_t t_meas = m.timestamp_2; 
-
-        const Time t_m(static_cast<int64_t>(t_meas));
-
-        // Build the transform that maps p1 (in sensor@prev) to sensor@curr:
-        //   T = T_s_m(t_m) · T_m_s(t_prev)
-        //   = compose(T_s_r, T_r_m(t_m)) · inverse(compose(T_s_r, T_r_m(t_prev)))
-        auto T_r_m_t_eval = trajectory->getPoseInterpolator(t_m);
-        auto T_r_m_prev_eval = trajectory->getPoseInterpolator(Time(frame_start_time));
-
-        auto T_s_m_curr = compose(T_s_r_var, T_r_m_t_eval);
-        auto T_m_s_prev = inverse(compose(T_s_r_var, T_r_m_prev_eval));
-        auto T_scurr_sprev = compose(T_s_m_curr, T_m_s_prev);
-
-        // Reprojection error: e = y2 - f(T · p1)
-        auto error_func = ReprojErrorEval::MakeShared(
-            T_scurr_sprev, m.p1, m.y2, projector_);
-
-        auto cost = WeightedLeastSqCostTerm<2>::MakeShared(
-            error_func, noise_model_vis, loss_func_vis);
+        auto error_func = ReprojErrorEval::MakeShared(T_s_m_eval, m.p_ref, m.y2, projector_);
+        auto cost = WeightedLeastSqCostTerm<2>::MakeShared(error_func, noise_model_vis, loss_func_vis);
         problem.addCostTerm(cost);
 
-        // Range error: e = ||p2|| - ||T · p1|| (shares T_scurr_sprev)
-        if (config_->use_range_cost) {
-          const double range2 = m.p2.norm();
-          if (range2 > 0.0 && std::isfinite(range2)) {
-            auto range_error_func = RangeErrorEval::MakeShared(
-                T_scurr_sprev, m.p1, range2);
-            auto range_cost = WeightedLeastSqCostTerm<1>::MakeShared(
-                range_error_func, noise_model_range, loss_func_range);
-            problem.addCostTerm(range_cost);
-          }
+        // Range error: e = ||p2|| - ||T_s_m(t2) · p_landmark||
+        const double range2 = m.p2.norm();
+        if (config_->use_range_cost && range2 > 0.0 && std::isfinite(range2)) {
+          auto range_error_func = RangeErrorEval::MakeShared(T_s_m_eval, m.p_ref, range2);
+          auto range_cost = WeightedLeastSqCostTerm<1>::MakeShared(range_error_func, noise_model_range, loss_func_range);
+          problem.addCostTerm(range_cost);
         }
       }
 
       CLOG(DEBUG, "lidar.odometry_liv")
-          << "Added " << visual_inliers.size()
-          << " frame-to-frame visual cost terms (step " << step << ")";
-      }  // end if (use_map_costs) / else
+          << "Added " << feature_matches.size()
+          << " feature reprojection cost terms (" << feature_source
+          << ", step " << step << ")";
     }
 
     // ── Solve ──
@@ -782,14 +764,14 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
 
     GaussNewtonSolver solver(problem, params);
 
-    // [NEW] check for the constructed Hessian matrix and gradient vector for degeneracy. 
-    Eigen::SparseMatrix<double> swf_hessian;
-    Eigen::VectorXd swf_gradient_v;
-    problem.buildGaussNewtonTerms(swf_hessian, swf_gradient_v);
-    CLOG(INFO, "lidar.odometry_liv") << "swf_hessian: " << swf_hessian.rows() << " x " << swf_hessian.cols()
-                                     << " swf_gradient_v: size=" << swf_gradient_v.size();
-    // converted to normal dense matrix for operation. 
-    const Eigen::MatrixXd H_dense(swf_hessian);
+    // // [NEW] check for the constructed Hessian matrix and gradient vector for degeneracy. 
+    // Eigen::SparseMatrix<double> swf_hessian;
+    // Eigen::VectorXd swf_gradient_v;
+    // problem.buildGaussNewtonTerms(swf_hessian, swf_gradient_v);
+    // CLOG(INFO, "lidar.odometry_liv") << "swf_hessian: " << swf_hessian.rows() << " x " << swf_hessian.cols()
+    //                                  << " swf_gradient_v: size=" << swf_gradient_v.size();
+    // // converted to normal dense matrix for operation. 
+    // const Eigen::MatrixXd H_dense(swf_hessian);
 
     try {
       solver.optimize();
@@ -909,7 +891,7 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       CLOG(DEBUG, "lidar.odometry_liv")
           << "Total steps: " << step
           << ", matched ratio: " << matched_points_ratio
-          << ", visual inliers: " << num_visual_inliers;
+          << ", feature inliers: " << num_visual_inliers;
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
         CLOG(WARNING, "lidar.odometry_liv") << "ICP+LIV did not converge.";
@@ -918,6 +900,33 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
         }
       }
       break;
+    }
+  }
+
+  // ── Health of the feature covariances ──
+  // Median squared Mahalanobis distance of the feature residuals after the
+  // last step. With correct covariances it follows a chi^2 distribution with
+  // 3 dof, whose median is 2.37: a smaller value means feature_sigma_px is
+  // too large (conservative), a larger one that it is too small.
+  if (!feature_matches.empty()) {
+    std::vector<double> maha_sq;
+    maha_sq.reserve(feature_matches.size());
+    for (const auto& m : feature_matches) {
+      const auto T_r_m_t_eval = trajectory->getPoseInterpolator(Time(featureTime(m.t2)));
+      const Eigen::Matrix4d T_m_s_t = inverse(compose(T_s_r_var, T_r_m_t_eval))->evaluate().matrix();
+      const Eigen::Matrix3d R_m_s = T_m_s_t.block<3, 3>(0, 0);
+      const Eigen::Vector3d e = m.p_ref - (R_m_s * m.p2 + T_m_s_t.block<3, 1>(0, 3));
+      const Eigen::Matrix3d cov = m.cov_ref + R_m_s * m.cov2 * R_m_s.transpose();
+      const double d2 = e.dot(cov.ldlt().solve(e));
+      if (std::isfinite(d2)) maha_sq.push_back(d2);
+    }
+    if (!maha_sq.empty()) {
+      const auto mid = maha_sq.begin() + maha_sq.size() / 2;
+      std::nth_element(maha_sq.begin(), mid, maha_sq.end());
+      CLOG(INFO, "lidar.odometry_liv")
+          << "Features (" << feature_source << "): " << feature_matches.size()
+          << " inliers, median squared Mahalanobis distance " << *mid
+          << " (2.37 if the covariances are right)";
     }
   }
 
@@ -966,6 +975,24 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
     cart2pol(*undistorted_point_cloud);
     qdata.undistorted_point_cloud = undistorted_point_cloud;
+#if false
+    // store undistorted raw point cloud
+    auto undistorted_raw_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.raw_point_cloud);
+    if (config_->use_trajectory_estimation) {
+      auto &raw_points = *undistorted_raw_point_cloud;
+      auto points_mat = raw_points.getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+      for (unsigned i = 0; i < raw_points.size(); i++) {
+        const auto &qry_time = raw_points[i].timestamp;
+        const auto T_rintp_m_eval = trajectory->getPoseInterpolator(Time(qry_time));
+        const auto T_s_sintp_eval = inverse(compose(T_s_r_var, compose(T_rintp_m_eval, T_m_s_eval)));
+        const auto T_s_sintp = T_s_sintp_eval->evaluate().matrix().cast<float>();
+        points_mat.block<4, 1>(0, i) = T_s_sintp * points_mat.block<4, 1>(0, i);
+      }
+    }
+    cart2pol(*undistorted_raw_point_cloud);
+    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
+#endif
 
     // Store trajectory info
     *qdata.w_m_r_in_r_odo = w_m_r_in_r_eval->value();
@@ -1016,42 +1043,61 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
       CLOG(WARNING, "lidar.odometry_liv")
           << "Matched ratio " << matched_points_ratio << " below threshold.";
     }
+    // do not undistort the pointcloud
     auto undistorted_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
     cart2pol(*undistorted_point_cloud);
     qdata.undistorted_point_cloud = undistorted_point_cloud;
+#if false
+    // do not undistort the raw pointcloud as well
+    auto undistorted_raw_point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(*qdata.raw_point_cloud);
+    cart2pol(*undistorted_raw_point_cloud);
+    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
+#endif
     *qdata.odo_success = false;
   }
 
-  // ── Update prev_intensity_features for next frame ──
-  // Use = to overwrite any existing value injected by the pipeline.
-  //
-  // Time handling:
-  // on success, motion-undistort every feature 3-D point from its observation
-  // time to frame_end_time using the optimized trajectory, so the next frame
-  // can treat p1 as observed exactly at its frame_start_time. On failure,
-  // fall back to storing the raw features (boundary approximation).
-  if (qdata.live_intensity_features.valid()) {
+  // ── Features for the map maintenance and for the next frame ──
+  // On success, move every feature 3-D point from its time featureTime(t) to
+  // frame_end_time using the optimized trajectory (its covariance is rotated
+  // the same way). With use_trajectory_estimation this is the motion
+  // undistortion of the features; with a rigid scan featureTime(t) is
+  // frame_end_time and the points are kept as measured, as the lidar points. These features go to the visual map maintenance
+  // module, together with the landmark each one was matched to, and become
+  // the previous-scan features of the next frame: they are then expressed
+  // exactly at its frame_start_time, where the prior pose is.
+  // On failure nothing is stored: the prior pose and the previous-scan
+  // features both stay at the last successful scan.
+  if (qdata.live_intensity_features.valid() && config_->use_visual &&
+      *qdata.odo_success) {
     auto feat_copy = std::make_shared<IntensityFeatures>(*qdata.live_intensity_features);
-    if (config_->use_visual && *qdata.odo_success) {
-      const auto T_r_m_end_eval = trajectory->getPoseInterpolator(Time(static_cast<int64_t>(frame_end_time)));
-      const Eigen::Matrix4d T_s_m_end = compose(T_s_r_var, T_r_m_end_eval)->evaluate().matrix();
-      for (int i = 0; i < feat_copy->size(); ++i) {
-        const Eigen::Vector3d p = feat_copy->points_3d.col(i);
-        if (!p.allFinite() || p.norm() < 0.1) continue;
-        const int64_t t_feat = (i < static_cast<int>(feat_copy->timestamps.size()))
-            ? std::clamp(feat_copy->timestamps[i], frame_start_time, frame_end_time)
-            : frame_end_time;
-        const auto T_r_m_t_eval = trajectory->getPoseInterpolator(Time(t_feat));
-        const Eigen::Matrix4d T_m_s_t = inverse(compose(T_s_r_var, T_r_m_t_eval))->evaluate().matrix();
-        const Eigen::Vector4d p_h = (Eigen::Vector4d() << p, 1.0).finished();
-        feat_copy->points_3d.col(i) = (T_s_m_end * T_m_s_t * p_h).head<3>();
-        if (i < static_cast<int>(feat_copy->timestamps.size()))
-          feat_copy->timestamps[i] = frame_end_time;  // now expressed at scan end
+    const bool has_covs = feat_copy->hasCovs();
+    const auto T_r_m_end_eval = trajectory->getPoseInterpolator(Time(static_cast<int64_t>(frame_end_time)));
+    const Eigen::Matrix4d T_s_m_end = compose(T_s_r_var, T_r_m_end_eval)->evaluate().matrix();
+    for (int i = 0; i < feat_copy->size(); ++i) {
+      const Eigen::Vector3d p = feat_copy->points_3d.col(i);
+      if (!p.allFinite() || p.norm() < 0.1) continue;
+      const int64_t t_feat = (i < static_cast<int>(feat_copy->timestamps.size()))
+          ? featureTime(feat_copy->timestamps[i])
+          : frame_end_time;
+      const auto T_r_m_t_eval = trajectory->getPoseInterpolator(Time(t_feat));
+      const Eigen::Matrix4d T_m_s_t = inverse(compose(T_s_r_var, T_r_m_t_eval))->evaluate().matrix();
+      const Eigen::Matrix4d T_send_st = T_s_m_end * T_m_s_t;
+      const Eigen::Vector4d p_h = (Eigen::Vector4d() << p, 1.0).finished();
+      feat_copy->points_3d.col(i) = (T_send_st * p_h).head<3>();
+      if (has_covs) {
+        const Eigen::Matrix3d R = T_send_st.block<3, 3>(0, 0);
+        feat_copy->covs[i] = R * feat_copy->covs[i] * R.transpose();
       }
-      // expose the undistorted features (sensor frame at scan end) for the
-      // visual map maintenance module
-      qdata.undistorted_intensity_features = feat_copy;
+      if (i < static_cast<int>(feat_copy->timestamps.size()))
+        feat_copy->timestamps[i] = frame_end_time;  // now expressed at scan end
     }
+    // expose the undistorted features (sensor frame at scan end) for the
+    // visual map maintenance module
+    qdata.undistorted_intensity_features = feat_copy;
+    if (static_cast<int>(matched_landmark.size()) != feat_copy->size())
+      matched_landmark.assign(feat_copy->size(), -1);
+    qdata.feature_matched_landmark = matched_landmark;
+    // use = to overwrite the value injected by the pipeline
     qdata.prev_intensity_features = feat_copy;
   }
   // clang-format on

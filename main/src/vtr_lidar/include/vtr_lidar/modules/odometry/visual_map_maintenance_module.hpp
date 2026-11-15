@@ -8,7 +8,9 @@
  *   1. takes the live intensity features that odometry motion-undistorted
  *      to the scan end (qdata.undistorted_intensity_features)
  *   2. transforms them into the odometry map frame using the scan-end pose
- *   3. merges them into the sliding feature map (voxel + descriptor dedup)
+ *   3. merges them into the sliding feature map by association: features
+ *      that odometry matched to a landmark update it, the others are merged
+ *      into a nearby landmark (Mahalanobis gate + descriptor) or added
  *   4. ages landmarks and drops those not re-observed for a while
  *
  * Run this module after the lidar `mapping` module in the odometry list.
@@ -36,8 +38,14 @@ class VisualMapMaintenanceModule : public tactic::BaseModule {
   struct Config : public tactic::BaseModule::Config {
     PTR_TYPEDEFS(Config);
 
-    /// Landmark dedup voxel size (metres)
-    float feature_voxel_size = 0.3;
+    /// Squared Mahalanobis gate for merging an unmatched feature into a
+    /// nearby landmark (11.34: 99 % of chi^2 with 3 dof)
+    float feature_merge_gate = 11.34;
+    /// Landmarks further than this from a feature are not compared (metres)
+    float feature_merge_radius = 2.0;
+    /// 1-sigma of a feature position when it comes without a covariance
+    /// (metres, isotropic)
+    float default_feature_sigma = 0.1;
     /// Scans a landmark survives without re-observation (negative = infinite)
     float feature_life_time = 20.0;
     /// Max ORB Hamming distance to merge as the same landmark

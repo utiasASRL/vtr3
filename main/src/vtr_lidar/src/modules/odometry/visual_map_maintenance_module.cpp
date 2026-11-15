@@ -17,7 +17,9 @@ auto VisualMapMaintenanceModule::Config::fromROS(
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
-  config->feature_voxel_size = node->declare_parameter<float>(param_prefix + ".feature_voxel_size", config->feature_voxel_size);
+  config->feature_merge_gate = node->declare_parameter<float>(param_prefix + ".feature_merge_gate", config->feature_merge_gate);
+  config->feature_merge_radius = node->declare_parameter<float>(param_prefix + ".feature_merge_radius", config->feature_merge_radius);
+  config->default_feature_sigma = node->declare_parameter<float>(param_prefix + ".default_feature_sigma", config->default_feature_sigma);
   config->feature_life_time = node->declare_parameter<float>(param_prefix + ".feature_life_time", config->feature_life_time);
   config->descriptor_merge_dist = node->declare_parameter<float>(param_prefix + ".descriptor_merge_dist", config->descriptor_merge_dist);
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
@@ -38,7 +40,8 @@ void VisualMapMaintenanceModule::run_(QueryCache& qdata0, OutputCache&,
 
   // construct the feature map if it does not exist
   if (!qdata.sliding_feature_map_odo)
-    qdata.sliding_feature_map_odo.emplace(config_->feature_voxel_size,
+    qdata.sliding_feature_map_odo.emplace(config_->feature_merge_gate,
+                                          config_->feature_merge_radius,
                                           config_->descriptor_merge_dist);
 
   // do not update the map if registration failed
@@ -66,16 +69,43 @@ void VisualMapMaintenanceModule::run_(QueryCache& qdata0, OutputCache&,
       (T_m_s.block<3, 3>(0, 0) * features.points_3d).colwise() +
       T_m_s.block<3, 1>(0, 3);
 
+  // covariances rotated into the map frame the same way (isotropic default
+  // if the features come without one)
+  const Eigen::Matrix3d R_m_s = T_m_s.block<3, 3>(0, 0);
+  const int num_features = static_cast<int>(points_m.cols());
+  std::vector<Eigen::Matrix3d> covs_m(num_features);
+  const bool has_covs = features.hasCovs();
+  const double default_var = static_cast<double>(config_->default_feature_sigma) *
+                             static_cast<double>(config_->default_feature_sigma);
+  for (int i = 0; i < num_features; ++i) {
+    if (has_covs) {
+      covs_m[i] = R_m_s * features.covs[i] * R_m_s.transpose();
+      covs_m[i] = 0.5 * (covs_m[i] + covs_m[i].transpose());
+    } else {
+      covs_m[i] = default_var * Eigen::Matrix3d::Identity();
+    }
+  }
+
   std::vector<float> responses(features.keypoints.size());
   for (size_t i = 0; i < features.keypoints.size(); ++i)
     responses[i] = features.keypoints[i].response;
 
-  feature_map.update(points_m, features.descriptors, responses,
-                     config_->feature_life_time);
+  // landmark that odometry matched each feature to (-1 = none). The indices
+  // refer to the map as it was during odometry: it is only changed here.
+  std::vector<int> matched_landmark;
+  if (qdata.feature_matched_landmark.valid() &&
+      static_cast<int>(qdata.feature_matched_landmark->size()) == num_features)
+    matched_landmark = *qdata.feature_matched_landmark;
+
+  feature_map.update(points_m, covs_m, features.descriptors, responses,
+                     matched_landmark, config_->feature_life_time);
+  const auto stats = feature_map.last_update();
   if (config_->feature_life_time > 0.0) feature_map.age();
 
   CLOG(DEBUG, "lidar.visual_map_maintenance")
-      << "Updated feature map size is: " << feature_map.size();
+      << "Updated feature map size is: " << feature_map.size()
+      << " (matched " << stats.matched << ", merged " << stats.merged
+      << ", added " << stats.added << ")";
 
   /// \note like the lidar submap visualization, this converts landmarks from
   /// the map frame to the vertex frame (shared with sliding_map_odo)

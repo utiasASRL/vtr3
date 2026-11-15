@@ -218,6 +218,50 @@ void OusterProjector::projectionJacobian(
       -K_(1, 1) * p.y() * p.z() * irxy / R2, K_(1, 1) * L / R2;
 }
 
+// ── measurementJacobian / backProjectJacobian ────────────────────────────────
+Eigen::Matrix3d OusterProjector::measurementJacobian(
+    const Eigen::Vector3d& p) const {
+  Eigen::Matrix<double, 2, 3> du_dp;
+  projectionJacobian(p, du_dp);
+  Eigen::Matrix3d F;
+  F.topRows<2>() = du_dp;
+  F.row(2) = p.transpose() / p.norm();
+  return F;
+}
+
+Eigen::Matrix3d OusterProjector::backProjectJacobian(
+    const Eigen::Vector3d& p) const {
+  // Inverse of the measurement z = [u, v, rho] of the beam-offset spherical
+  // model (b: beam offset, phi: azimuth, theta: elevation, rho = |p|):
+  //   phi = (u - cx) / fx,   theta = (v - cy) / fy
+  //   R = sqrt(rho^2 - b^2 sin^2(theta)) - b cos(theta)   (beam length)
+  //   p = [ (b + R cos(theta)) cos(phi),
+  //         (b + R cos(theta)) sin(phi),
+  //         R sin(theta) ]
+  // Its Jacobian, with the beam direction d, the unit vector e_theta of
+  // increasing elevation and D = R + b cos(theta) = sqrt(rho^2 - b^2 sin^2):
+  //   dp/du   = [-y, x, 0] / fx
+  //   dp/dv   = R (e_theta + (b sin(theta) / D) d) / fy
+  //   dp/drho = (rho / D) d
+  const double rxy = p.head<2>().norm();
+  const double L = rxy - beam_offset_m_;
+  const double R = std::sqrt(L * L + p.z() * p.z());
+  const double rho = p.norm();
+  const double cos_phi = p.x() / rxy, sin_phi = p.y() / rxy;
+  const double cos_theta = L / R, sin_theta = p.z() / R;
+  const double D = R + beam_offset_m_ * cos_theta;
+
+  const Eigen::Vector3d d(cos_theta * cos_phi, cos_theta * sin_phi, sin_theta);
+  const Eigen::Vector3d e_theta(-sin_theta * cos_phi, -sin_theta * sin_phi,
+                                cos_theta);
+
+  Eigen::Matrix3d J;
+  J.col(0) = Eigen::Vector3d(-p.y(), p.x(), 0.0) / K_(0, 0);
+  J.col(1) = R * (e_theta + (beam_offset_m_ * sin_theta / D) * d) / K_(1, 1);
+  J.col(2) = (rho / D) * d;
+  return J;
+}
+
 // ── backProject ──────────────────────────────────────────────────────────────
 Eigen::Vector3d OusterProjector::backProject(const Eigen::Vector2d& uv, double range) const {
   // Recover azimuth and elevation from pixel coordinates

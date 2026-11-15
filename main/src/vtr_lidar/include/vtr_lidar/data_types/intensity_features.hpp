@@ -38,12 +38,19 @@ class IntensityFeatures {
   Eigen::Matrix<double, 3, Eigen::Dynamic> points_3d;
   /// Per-feature timestamps (nanoseconds, same clock as PointWithInfo::timestamp)
   std::vector<int64_t> timestamps;
+  /// Covariance of each 3D position [m^2], in the frame of points_3d
+  /// (Sigma_p = J Sigma_z J^T, see IntensityFeatureManager). Either empty
+  /// (not available) or one entry per feature.
+  std::vector<Eigen::Matrix3d> covs;
   /// Image dimensions
   int image_width = 0;
   int image_height = 0;
 
   int size() const { return static_cast<int>(keypoints.size()); }
   bool empty() const { return keypoints.empty(); }
+  bool hasCovs() const {
+    return !covs.empty() && covs.size() == keypoints.size();
+  }
 };
 
 }  // namespace lidar

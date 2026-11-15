@@ -47,8 +47,16 @@ class IntensityFeatureExtractionModule : public tactic::BaseModule {
     int nlevels = 8;
     float scale_factor = 1.2f;
     int fast_threshold = 20;
-    float min_range = 0.5f;
-    float max_range = 100.0f;
+    float min_range = 0.5f;   ///< no features closer than this [m]
+    float max_range = 100.0f; ///< no features further than this [m]
+    /// Drop keypoints next to a range jump larger than this fraction
+    /// (<= 0 disables)
+    float edge_tol = 0.05f;
+
+    // Feature covariance, Sigma_p = J Sigma_z J^T with z = [u, v, rho]
+    double feature_sigma_px = 1.2;      ///< keypoint noise [px] (tune this)
+    double feature_sigma_range = 0.03;  ///< range noise of a feature [m]
+    bool feature_range_gradient = true; ///< couple pixel and range noise
 
     // Grid-based detection (spatial spread)
     int grid_rows = 2;          ///< vertical grid divisions

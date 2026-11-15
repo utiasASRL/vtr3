@@ -24,3 +24,7 @@ float64[] points_3d
 
 # Per-feature timestamps (nanoseconds, int64, N values)
 int64[] timestamps
+
+# Covariance of each 3D position [m^2], same frame as points_3d:
+# flattened row-major 3x3 per feature (9 * N doubles, empty = not available)
+float64[] covariances

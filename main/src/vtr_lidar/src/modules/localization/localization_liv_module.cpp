@@ -2,21 +2,28 @@
  * \file localization_liv_module.cpp
  * \author Wenda Zhao, Autonomous Space Robotics Lab (ASRL)
  *
- * LIV localization: ICP point-to-plane + visual reprojection error,
- * combined in a single STEAM Gauss-Newton optimisation.
+ * LIV localization: ICP point-to-plane + lidar intensity-image features,
+ * combined in a single STEAM Gauss-Newton optimisation. The feature residual
+ * is the 3-D point-to-point residual of the LIV odometry
+ *     e = p_landmark - T_v_s p_feature,
+ *     W = intensity_feature_scale * (Sigma_landmark + R Sigma_feature R^T)^-1
+ * (visual_residual: reproj keeps the 2-D reprojection error).
  *
  * This module is the localization counterpart of odometry_liv_module.
  * Key differences from odometry:
  *   - Uses OptimizationProblem with a single pose variable T_r_v
  *     (no trajectory estimation / interpolation / marginalization)
- *   - Visual matching is live_intensity_features vs map_intensity_features
- *     (recalled from teach vertex) rather than consecutive-frame matching
- *   - Map feature 3D points are in the vertex frame, so the transform
- *     for reprojection is T_s_v = compose(T_s_r, T_r_v)
+ *   - Visual matching is live_intensity_features vs the merged feature
+ *     submap recalled from the teach graph (feature_map_loc)
+ *   - Landmarks are moved into the vertex frame with the fixed
+ *     T_v_m_feature_loc, so the feature residual uses T_s_v = T_s_r · T_r_v
  *   - No MD-RANSAC (single-pose model has no motion distortion);
- *     outlier rejection uses ratio-test + Cauchy robust loss
+ *     outlier rejection uses ratio-test + Cauchy robust loss on the
+ *     Mahalanobis distance of the feature residual
  */
 #include "vtr_lidar/modules/localization/localization_liv_module.hpp"
+
+#include <cmath>
 
 #include "vtr_lidar/data_types/intensity_features.hpp"
 #include "vtr_lidar/features/reproj_error_eval.hpp"
@@ -63,6 +70,15 @@ auto LocalizationLIVModule::Config::fromROS(
   config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
 
   // ── Visual (LIV) ──
+  config->visual_residual = node->declare_parameter<std::string>(param_prefix + ".visual_residual", config->visual_residual);
+  if (config->visual_residual != "p2p" && config->visual_residual != "reproj") {
+    std::string err{"visual_residual must be 'p2p' or 'reproj'!"};
+    CLOG(ERROR, "lidar.localization_liv") << err;
+    throw std::invalid_argument{err};
+  }
+  config->intensity_feature_scale = node->declare_parameter<double>(param_prefix + ".intensity_feature_scale", config->intensity_feature_scale);
+  config->feature_cauchy_k = node->declare_parameter<double>(param_prefix + ".feature_cauchy_k", config->feature_cauchy_k);
+  config->default_feature_sigma = node->declare_parameter<double>(param_prefix + ".default_feature_sigma", config->default_feature_sigma);
   config->sigma_pixel = node->declare_parameter<double>(param_prefix + ".sigma_pixel", config->sigma_pixel);
   config->reproj_loss_sigma = node->declare_parameter<double>(param_prefix + ".reproj_loss_sigma", config->reproj_loss_sigma);
   config->use_visual = node->declare_parameter<bool>(param_prefix + ".use_visual", config->use_visual);
@@ -218,6 +234,9 @@ void LocalizationLIVModule::run_(QueryCache& qdata0, OutputCache& output,
   /// Compound transform: vertex → current sensor  (T_s_v = T_s_r · T_r_v)
   /// Used for reprojection: maps vertex-frame 3D points into current sensor frame
   const auto T_s_v_eval = compose(T_s_r_var, T_r_v_var);
+  /// Its inverse, sensor → vertex: aligns the live feature points with the
+  /// landmarks in the vertex frame (point-to-point residual)
+  const auto T_v_s_eval = inverse(T_s_v_eval);
   // clang-format on
 
   /// Initialize aligned points for matching (deep copy)
@@ -257,12 +276,18 @@ void LocalizationLIVModule::run_(QueryCache& qdata0, OutputCache& output,
   // ════════════════════════════════════════════════════════════════════════
   // Matched features: map 3D point (vertex frame) + live 2D observation
   struct VisualLocMatch {
-    Eigen::Vector3d p_vertex;  ///< 3D point in vertex frame
-    Eigen::Vector2d y_live;    ///< observed 2D projection in live sensor frame
+    Eigen::Vector3d p_vertex;    ///< 3D point in vertex frame
+    Eigen::Matrix3d cov_vertex;  ///< its covariance in the vertex frame
+    Eigen::Vector3d p_live;      ///< measured 3D point in live sensor frame
+    Eigen::Matrix3d cov_live;    ///< its covariance in the live sensor frame
+    Eigen::Vector2d y_live;      ///< observed 2D projection in live sensor frame
   };
+  const Eigen::Matrix3d default_cov =
+      config_->default_feature_sigma * config_->default_feature_sigma *
+      Eigen::Matrix3d::Identity();
   std::vector<VisualLocMatch> visual_loc_matches;
 
-  // ── Preferred path: match against the merged feature submap ──
+  // ── Match against the merged feature submap ──
   // Landmarks are in the teach odometry map frame; pre-transform them into
   // the vid_loc vertex frame with the fixed T_v_m_feature_loc so the
   // existing single-pose cost structure (T_s_v · p_vertex) applies as-is.
@@ -278,7 +303,10 @@ void LocalizationLIVModule::run_(QueryCache& qdata0, OutputCache& output,
 
     const cv::Mat map_descriptors = feature_map.descriptors();
     const auto map_points = feature_map.points();  // 3 x N, teach map frame
+    const auto& map_landmarks = feature_map.landmarks();
     const Eigen::Matrix4d T_v_mf = qdata.T_v_m_feature_loc->matrix();
+    const Eigen::Matrix3d R_v_mf = T_v_mf.block<3, 3>(0, 0);
+    const bool live_has_covs = live_feat.hasCovs();
 
     auto bf_matcher = cv::BFMatcher::create(cv::NORM_HAMMING, false);
     std::vector<std::vector<cv::DMatch>> knn_matches;
@@ -307,6 +335,9 @@ void LocalizationLIVModule::run_(QueryCache& qdata0, OutputCache& output,
       const Eigen::Vector3d p_map = map_points.col(map_idx);
       VisualLocMatch vm;
       vm.p_vertex = (T_v_mf * p_map.homogeneous()).head<3>();
+      vm.cov_vertex = R_v_mf * map_landmarks[map_idx].cov * R_v_mf.transpose();
+      vm.p_live = p_live;
+      vm.cov_live = live_has_covs ? live_feat.covs[live_idx] : default_cov;
       vm.y_live = y_live_proj;
       visual_loc_matches.push_back(vm);
     }
@@ -315,60 +346,6 @@ void LocalizationLIVModule::run_(QueryCache& qdata0, OutputCache& output,
         << "Visual loc matches (feature submap): "
         << visual_loc_matches.size() << " (live: " << live_feat.size()
         << ", map landmarks: " << feature_map.size() << ")";
-  }
-  // ── Legacy fallback: single-frame features from the teach vertex ──
-  else if (config_->use_visual && projector_ &&
-      qdata.live_intensity_features.valid() &&
-      qdata.map_intensity_features.valid()) {
-    const auto& live_feat = *qdata.live_intensity_features;
-    const auto& map_feat_vec = *qdata.map_intensity_features;
-
-    if (!map_feat_vec.empty() && !live_feat.empty()) {
-      // Concatenate all map features (typically one vertex worth)
-      // We match LIVE (query) → MAP (train)
-      const auto& map_feat = map_feat_vec[0];  // single vertex
-
-      if (!map_feat.empty()) {
-        auto bf_matcher = cv::BFMatcher::create(cv::NORM_HAMMING, false);
-        std::vector<std::vector<cv::DMatch>> knn_matches;
-        bf_matcher->knnMatch(live_feat.descriptors, map_feat.descriptors,
-                             knn_matches, 2);
-
-        for (const auto& match_pair : knn_matches) {
-          if (match_pair.size() < 2) continue;
-          const auto& best = match_pair[0];
-          const auto& second = match_pair[1];
-
-          // Ratio test + absolute distance threshold
-          if (best.distance < 50.0f &&
-              best.distance < 0.8f * second.distance) {
-            const int live_idx = best.queryIdx;
-            const int map_idx = best.trainIdx;
-
-            // Validate 3D point
-            const Eigen::Vector3d p_v = map_feat.points_3d.col(map_idx);
-            if (p_v.norm() < 0.5) continue;
-
-            // Analytically project the live 3D point to get y_live
-            // in the same coordinate space that projectPoint uses.
-            const Eigen::Vector3d p_live = live_feat.points_3d.col(live_idx);
-            if (p_live.norm() < 0.5) continue;
-            Eigen::Vector2d y_live_proj;
-            if (!projector_->projectPoint(p_live, y_live_proj)) continue;
-
-            VisualLocMatch vm;
-            vm.p_vertex = p_v;
-            vm.y_live = y_live_proj;
-            visual_loc_matches.push_back(vm);
-          }
-        }
-
-        CLOG(DEBUG, "lidar.localization_liv")
-            << "Visual loc matches: " << visual_loc_matches.size()
-            << " (live: " << live_feat.size()
-            << ", map: " << map_feat.size() << ")";
-      }
-    }
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -457,8 +434,49 @@ void LocalizationLIVModule::run_(QueryCache& qdata0, OutputCache& output,
       }
     }  // end if (use_lidar)
 
-    // ── Visual reprojection error cost terms ──
-    if (config_->use_visual && !visual_loc_matches.empty() && projector_) {
+    // ── Intensity-image feature cost terms ──
+    if (config_->use_visual && !visual_loc_matches.empty() &&
+        config_->visual_residual == "p2p") {
+      // 3-D point-to-point: e = p_vertex - T_v_s p_live, with
+      //   W = scale (Sigma_landmark + R_v_s Sigma_feature R_v_s^T)^-1
+      // recomputed every step with the current rotation, scale =
+      // intensity_feature_scale. The Cauchy scale is multiplied by sqrt(scale)
+      // so that feature_cauchy_k acts on the Mahalanobis distance (steam
+      // applies the loss to the whitened error, which the scale factor
+      // multiplies by sqrt(scale)).
+      const double scale = config_->intensity_feature_scale;
+      BaseLossFunc::Ptr loss_func_feat = nullptr;
+      if (config_->feature_cauchy_k > 0.0)
+        loss_func_feat =
+            CauchyLossFunc::MakeShared(config_->feature_cauchy_k * std::sqrt(scale));
+      else
+        loss_func_feat = L2LossFunc::MakeShared();
+
+      const Eigen::Matrix3d R_v_s =
+          T_v_s_eval->evaluate().matrix().block<3, 3>(0, 0);
+      int num_added = 0;
+      for (const auto& m : visual_loc_matches) {
+        const Eigen::Matrix3d cov =
+            m.cov_vertex + R_v_s * m.cov_live * R_v_s.transpose();
+        Eigen::Matrix3d W = scale * cov.inverse();
+        W = 0.5 * (W + W.transpose());
+        if (!W.allFinite()) continue;
+        const auto noise_model_feat =
+            StaticNoiseModel<3>::MakeShared(W, NoiseType::INFORMATION);
+        const auto error_func =
+            p2p::p2pError(T_v_s_eval, m.p_vertex, m.p_live);
+        const auto cost = WeightedLeastSqCostTerm<3>::MakeShared(
+            error_func, noise_model_feat, loss_func_feat);
+        problem.addCostTerm(cost);
+        num_added++;
+      }
+
+      CLOG(DEBUG, "lidar.localization_liv")
+          << "Added " << num_added
+          << " feature point-to-point cost terms (step " << step << ")";
+    } else if (config_->use_visual && !visual_loc_matches.empty() &&
+               projector_) {
+      // 2-D reprojection residual, kept for comparison
       const Eigen::Matrix2d meas_cov =
           config_->sigma_pixel * config_->sigma_pixel *
           Eigen::Matrix2d::Identity();
@@ -489,14 +507,14 @@ void LocalizationLIVModule::run_(QueryCache& qdata0, OutputCache& output,
     params.max_iterations = config_->max_iterations;
     GaussNewtonSolver solver(problem, params);
 
-    // [NEW] check for the constructed Hessian matrix and gradient vector for degeneracy. 
-    Eigen::SparseMatrix<double> loc_hessian;
-    Eigen::VectorXd loc_gradient_v;
-    problem.buildGaussNewtonTerms(loc_hessian, loc_gradient_v);
-    CLOG(INFO, "lidar.localization_liv") << "loc_hessian: " << loc_hessian.rows() << " x " << loc_hessian.cols()
-                                         << " loc_gradient_v: size=" << loc_gradient_v.size();
-    // converted to normal dense matrix for operation. 
-    const Eigen::MatrixXd H_dense(loc_hessian);
+    // // [NEW] check for the constructed Hessian matrix and gradient vector for degeneracy. 
+    // Eigen::SparseMatrix<double> loc_hessian;
+    // Eigen::VectorXd loc_gradient_v;
+    // problem.buildGaussNewtonTerms(loc_hessian, loc_gradient_v);
+    // CLOG(INFO, "lidar.localization_liv") << "loc_hessian: " << loc_hessian.rows() << " x " << loc_hessian.cols()
+    //                                      << " loc_gradient_v: size=" << loc_gradient_v.size();
+    // // converted to normal dense matrix for operation. 
+    // const Eigen::MatrixXd H_dense(loc_hessian);
 
     try {
       solver.optimize();

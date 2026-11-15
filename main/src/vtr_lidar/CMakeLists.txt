@@ -135,6 +135,10 @@ if(BUILD_TESTING)
   ament_add_gmock(test_intensity_features test/test_intensity_features.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(test_intensity_features ${PROJECT_NAME}_pipeline)
 
+  # MD-RANSAC and the Ouster measurement Jacobians
+  ament_add_gmock(test_md_ransac test/test_md_ransac.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_md_ransac ${PROJECT_NAME}_pipeline)
+
   find_package(Boost REQUIRED)
   find_package(PCL REQUIRED)
   add_executable(example_himmelsbach test/segmentation/example_himmelsbach.cpp)

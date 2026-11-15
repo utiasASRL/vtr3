@@ -54,6 +54,15 @@ inline auto IntensityFeatures::fromStorable(const IntensityFeaturesMsg& msg) -> 
     }
   }
 
+  // Covariances (optional)
+  if (N > 0 && static_cast<int>(msg.covariances.size()) >= 9 * N) {
+    result->covs.resize(N);
+    for (int i = 0; i < N; ++i)
+      for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 3; ++c)
+          result->covs[i](r, c) = msg.covariances[i * 9 + r * 3 + c];
+  }
+
   return result;
 }
 
@@ -99,6 +108,15 @@ inline auto IntensityFeatures::toStorable() const -> IntensityFeaturesMsg {
   msg.timestamps.resize(N);
   for (int i = 0; i < N; ++i) {
     msg.timestamps[i] = (i < static_cast<int>(timestamps.size())) ? timestamps[i] : 0;
+  }
+
+  // Covariances (optional)
+  if (hasCovs()) {
+    msg.covariances.resize(N * 9);
+    for (int i = 0; i < N; ++i)
+      for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 3; ++c)
+          msg.covariances[i * 9 + r * 3 + c] = covs[i](r, c);
   }
 
   return msg;

@@ -84,6 +84,10 @@ auto IntensityFeatureExtractionModule::Config::fromROS(
   config->fast_threshold = node->declare_parameter<int>(param_prefix + ".fast_threshold", config->fast_threshold);
   config->min_range = static_cast<float>(node->declare_parameter<double>(param_prefix + ".min_range", config->min_range));
   config->max_range = static_cast<float>(node->declare_parameter<double>(param_prefix + ".max_range", config->max_range));
+  config->edge_tol = static_cast<float>(node->declare_parameter<double>(param_prefix + ".edge_tol", config->edge_tol));
+  config->feature_sigma_px = node->declare_parameter<double>(param_prefix + ".feature_sigma_px", config->feature_sigma_px);
+  config->feature_sigma_range = node->declare_parameter<double>(param_prefix + ".feature_sigma_range", config->feature_sigma_range);
+  config->feature_range_gradient = node->declare_parameter<bool>(param_prefix + ".feature_range_gradient", config->feature_range_gradient);
   config->grid_rows = node->declare_parameter<int>(param_prefix + ".grid_rows", config->grid_rows);
   config->grid_cols = node->declare_parameter<int>(param_prefix + ".grid_cols", config->grid_cols);
   config->max_per_cell = node->declare_parameter<int>(param_prefix + ".max_per_cell", config->max_per_cell);
@@ -140,6 +144,10 @@ void IntensityFeatureExtractionModule::run_(
     fm_config->fast_threshold = config_->fast_threshold;
     fm_config->min_range = config_->min_range;
     fm_config->max_range = config_->max_range;
+    fm_config->edge_tol = config_->edge_tol;
+    fm_config->feature_sigma_px = config_->feature_sigma_px;
+    fm_config->feature_sigma_range = config_->feature_sigma_range;
+    fm_config->feature_range_gradient = config_->feature_range_gradient;
     fm_config->grid_rows = config_->grid_rows;
     fm_config->grid_cols = config_->grid_cols;
     fm_config->max_per_cell = config_->max_per_cell;
@@ -254,7 +262,8 @@ void IntensityFeatureExtractionModule::run_(
   //   pixel_to_point_index maps into the unfiltered cloud, which has 
   //   the same size as the hardware grid (rows_ × cols_)
   auto features = feature_manager_->detectFeatures(
-      intensity_image_u8, pixel_to_point_index, raw_cloud, mask_);
+      intensity_image_u8, pixel_to_point_index, raw_cloud, mask_,
+      projector_.get());
 
   CLOG(DEBUG, "lidar.intensity_feature_extraction")
       << "Extracted " << features.size()

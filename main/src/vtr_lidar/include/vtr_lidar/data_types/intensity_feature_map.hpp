@@ -4,14 +4,27 @@
  *
  * Sliding visual landmark map built from lidar intensity-image features.
  *
- * The analog of PointMap for ORB landmarks: features from successive
- * (motion-undistorted) scans are merged into a voxel-hashed landmark map
- * expressed in the odometry map frame. On a voxel hit, the descriptor
- * Hamming distance decides between "same landmark re-observed" (refresh
- * life time, average position, keep latest descriptor) and "different
- * landmark in the same voxel" (keep the stronger detector response).
- * Landmarks not re-observed for feature_life_time scans expire, mirroring
- * the point life time in OdometryMapMaintenanceModuleV2.
+ * The analog of PointMap for ORB landmarks, expressed in the odometry map
+ * frame. Landmarks are merged by association instead of a voxel grid: the
+ * position error of a feature grows with its range (one pixel is 6 mrad:
+ * 2 cm at 3 m, 25 cm at 40 m), so a fixed voxel is too small far away
+ * (re-observations are inserted again and again) and too large close by
+ * (different keypoints share a voxel).
+ *
+ *   - a feature that the odometry matched to a landmark (mutual nearest
+ *     neighbour + MD-RANSAC inlier) updates that landmark;
+ *   - any other feature is compared with the landmarks around it: if one is
+ *     within the Mahalanobis gate
+ *         (p - p_lm)^T (Sigma + Sigma_lm)^-1 (p - p_lm) < merge_gate
+ *     and its descriptor is close enough (descriptor_merge_dist), it is the
+ *     same landmark; otherwise the feature becomes a new landmark.
+ *
+ * Every landmark keeps a 3x3 covariance (map frame), needed by the feature
+ * residual. When a landmark is observed again it keeps the position and
+ * covariance of its most accurate observation (smallest covariance trace)
+ * and the latest descriptor. Landmarks not re-observed for feature_life_time
+ * scans expire, mirroring the point life time in
+ * OdometryMapMaintenanceModuleV2.
  */
 #pragma once
 
@@ -47,18 +60,36 @@ class IntensityFeatureMap {
   /// A single merged visual landmark in the map frame.
   struct Landmark {
     Eigen::Vector3d p = Eigen::Vector3d::Zero();  ///< position in map frame
+    /// covariance of the position in the map frame [m^2]
+    Eigen::Matrix3d cov = Eigen::Matrix3d::Identity();
     cv::Mat descriptor;                           ///< 1 x 32 CV_8U ORB row
     float response = 0.0f;                        ///< detector response
     float life_time = 0.0f;                       ///< scans left to live
     int num_obs = 1;                              ///< observation count
   };
 
-  IntensityFeatureMap(const float& dl, const float& descriptor_merge_dist)
-      : dl_(dl), descriptor_merge_dist_(descriptor_merge_dist) {}
+  /// Counts of the last update() (for logging).
+  struct UpdateStats {
+    int matched = 0;  ///< features that came with a landmark from odometry
+    int merged = 0;   ///< unmatched features merged into a nearby landmark
+    int added = 0;    ///< new landmarks
+  };
 
-  float dl() const { return dl_; }
+  /**
+   * \param merge_gate  squared Mahalanobis gate of a duplicate (11.34: 99 %
+   *                    of chi^2 with 3 dof)
+   * \param merge_radius  landmarks further away are not compared [m]
+   * \param descriptor_merge_dist  max Hamming distance of a duplicate
+   */
+  IntensityFeatureMap(const float& merge_gate, const float& merge_radius,
+                      const float& descriptor_merge_dist)
+      : merge_gate_(merge_gate),
+        merge_radius_(merge_radius),
+        descriptor_merge_dist_(descriptor_merge_dist) {}
+
   size_t size() const { return landmarks_.size(); }
   const std::vector<Landmark>& landmarks() const { return landmarks_; }
+  const UpdateStats& last_update() const { return last_update_; }
 
   /** \brief Assembled descriptor matrix (one row per landmark). */
   cv::Mat descriptors() const {
@@ -82,41 +113,120 @@ class IntensityFeatureMap {
   /**
    * \brief Merge a new scan's features into the map.
    * \param points       feature positions in the map frame (3 x N)
+   * \param covs         their covariances in the map frame (size N)
    * \param descriptors  ORB descriptors (N x 32, CV_8U)
    * \param responses    detector responses (size N)
+   * \param matched_landmark  index of the landmark the odometry matched each
+   *                     feature to (-1 = none); empty = no feature is matched
    * \param life_time    life time assigned to inserted/re-observed landmarks
    */
   void update(const Eigen::Matrix<double, 3, Eigen::Dynamic>& points,
+              const std::vector<Eigen::Matrix3d>& covs,
               const cv::Mat& descriptors, const std::vector<float>& responses,
+              const std::vector<int>& matched_landmark,
               const float& life_time) {
+    last_update_ = UpdateStats();
     const int n = static_cast<int>(points.cols());
-    if (n == 0 || descriptors.rows != n) return;
-    landmarks_.reserve(landmarks_.size() + n);
+    if (n == 0 || descriptors.rows != n ||
+        static_cast<int>(covs.size()) != n)
+      return;
+    const int num_old = static_cast<int>(landmarks_.size());
+
+    // (1) the landmark every feature belongs to (-1 = a new landmark)
+    std::vector<int> target(n, -1);
+    std::vector<bool> usable(n, false);
+    const bool has_matches = static_cast<int>(matched_landmark.size()) == n;
+    // coarse grid over the existing landmarks to find the ones near a feature
+    std::unordered_map<VoxKey, std::vector<int>> grid;
+    const double cell = std::max(static_cast<double>(merge_radius_), 1e-3);
+    const auto cellOf = [&](const Eigen::Vector3d& p) {
+      return VoxKey(static_cast<int>(std::floor(p.x() / cell)),
+                    static_cast<int>(std::floor(p.y() / cell)),
+                    static_cast<int>(std::floor(p.z() / cell)));
+    };
+    for (int j = 0; j < num_old; ++j)
+      grid[cellOf(landmarks_[j].p)].push_back(j);
+    const double radius2 =
+        static_cast<double>(merge_radius_) * static_cast<double>(merge_radius_);
+
     for (int i = 0; i < n; ++i) {
       const Eigen::Vector3d p = points.col(i);
-      if (!p.allFinite()) continue;
-      const float response =
-          (i < static_cast<int>(responses.size())) ? responses[i] : 0.0f;
-      const auto res = samples_.try_emplace(getKey(p), landmarks_.size());
-      if (res.second) {
-        landmarks_.emplace_back(
-            Landmark{p, descriptors.row(i).clone(), response, life_time, 1});
+      if (!p.allFinite() || !covs[i].allFinite()) continue;
+      usable[i] = true;
+      if (has_matches && matched_landmark[i] >= 0 &&
+          matched_landmark[i] < num_old) {
+        target[i] = matched_landmark[i];
+        last_update_.matched++;
         continue;
       }
-      auto& lm = landmarks_[res.first->second];
-      const double desc_dist =
-          cv::norm(lm.descriptor, descriptors.row(i), cv::NORM_HAMMING);
-      if (desc_dist <= descriptor_merge_dist_) {
-        // same landmark re-observed: refresh and refine
-        lm.num_obs++;
-        lm.p += (p - lm.p) / static_cast<double>(lm.num_obs);
-        lm.descriptor = descriptors.row(i).clone();  // track appearance
-        lm.response = std::max(lm.response, response);
-        lm.life_time = life_time;
-      } else if (response > lm.response) {
-        // different landmark in this voxel: keep the stronger one
-        lm = Landmark{p, descriptors.row(i).clone(), response, life_time, 1};
+      // duplicate of a nearby landmark: Mahalanobis gate + descriptor; of
+      // several candidates the one with the closest descriptor
+      const VoxKey key = cellOf(p);
+      double best_dist = static_cast<double>(descriptor_merge_dist_);
+      int best = -1;
+      for (int dx = -1; dx <= 1; ++dx)
+        for (int dy = -1; dy <= 1; ++dy)
+          for (int dz = -1; dz <= 1; ++dz) {
+            const auto it = grid.find(key + VoxKey(dx, dy, dz));
+            if (it == grid.end()) continue;
+            for (const int j : it->second) {
+              const auto& lm = landmarks_[j];
+              const Eigen::Vector3d d = p - lm.p;
+              if (d.squaredNorm() > radius2) continue;
+              const double desc_dist =
+                  cv::norm(lm.descriptor, descriptors.row(i), cv::NORM_HAMMING);
+              if (desc_dist > best_dist) continue;
+              const Eigen::Matrix3d S = covs[i] + lm.cov;
+              const double maha = d.dot(S.ldlt().solve(d));
+              if (!(maha < merge_gate_)) continue;
+              best_dist = desc_dist;
+              best = j;
+            }
+          }
+      if (best >= 0) {
+        target[i] = best;
+        last_update_.merged++;
       }
+    }
+
+    // (2) one feature per landmark: if several features point to a landmark,
+    // the most accurate one (smallest covariance trace) updates it
+    std::vector<int> observer(num_old, -1);
+    for (int i = 0; i < n; ++i) {
+      if (!usable[i] || target[i] < 0) continue;
+      int& obs = observer[target[i]];
+      if (obs < 0 || covs[i].trace() < covs[obs].trace()) obs = i;
+    }
+    for (int j = 0; j < num_old; ++j) {
+      const int i = observer[j];
+      if (i < 0) continue;
+      auto& lm = landmarks_[j];
+      const float response =
+          (i < static_cast<int>(responses.size())) ? responses[i] : 0.0f;
+      lm.num_obs++;
+      lm.life_time = life_time;
+      lm.descriptor = descriptors.row(i).clone();  // track appearance
+      lm.response = std::max(lm.response, response);
+      if (covs[i].trace() < lm.cov.trace()) {
+        lm.p = points.col(i);
+        lm.cov = covs[i];
+      }
+    }
+
+    // (3) the other features become new landmarks
+    for (int i = 0; i < n; ++i) {
+      if (!usable[i] || target[i] >= 0) continue;
+      const float response =
+          (i < static_cast<int>(responses.size())) ? responses[i] : 0.0f;
+      Landmark lm;
+      lm.p = points.col(i);
+      lm.cov = covs[i];
+      lm.descriptor = descriptors.row(i).clone();
+      lm.response = response;
+      lm.life_time = life_time;
+      lm.num_obs = 1;
+      landmarks_.emplace_back(std::move(lm));
+      last_update_.added++;
     }
   }
 
@@ -129,12 +239,6 @@ class IntensityFeatureMap {
       if (lm.life_time > 0.0f) kept.emplace_back(std::move(lm));
     }
     landmarks_ = std::move(kept);
-    // rebuild the voxel map; averaged positions may have migrated voxels,
-    // so on a collision keep the first entry instead of throwing
-    samples_.clear();
-    samples_.reserve(landmarks_.size());
-    for (size_t i = 0; i < landmarks_.size(); ++i)
-      samples_.try_emplace(getKey(landmarks_[i].p), i);
   }
 
   tactic::VertexId& vertex_id() { return vertex_id_; }
@@ -144,20 +248,17 @@ class IntensityFeatureMap {
 
  private:
   using VoxKey = pointmap::VoxKey;
-  VoxKey getKey(const Eigen::Vector3d& p) const {
-    return VoxKey(static_cast<int>(std::floor(p.x() / dl_)),
-                  static_cast<int>(std::floor(p.y() / dl_)),
-                  static_cast<int>(std::floor(p.z() / dl_)));
-  }
 
-  /** \brief Voxel grid size */
-  float dl_;
+  /** \brief Squared Mahalanobis gate of a duplicate */
+  float merge_gate_;
+  /** \brief Landmarks further than this from a feature are not compared */
+  float merge_radius_;
   /** \brief Max Hamming distance to merge as the same landmark */
   float descriptor_merge_dist_;
   /** \brief Merged landmarks */
   std::vector<Landmark> landmarks_;
-  /** \brief Sparse hashmap from voxels to landmark indices */
-  std::unordered_map<VoxKey, size_t> samples_;
+  /** \brief Counts of the last update */
+  UpdateStats last_update_;
   /** \brief The associated vertex id (set at vertex creation) */
   tactic::VertexId vertex_id_ = tactic::VertexId::Invalid();
   /** \brief Transform from the map frame to the vertex frame */
@@ -167,7 +268,10 @@ class IntensityFeatureMap {
 inline auto IntensityFeatureMap::fromStorable(
     const IntensityFeatureMapMsg& storable) -> Ptr {
   auto data = std::make_shared<IntensityFeatureMap>(
-      storable.dl, storable.descriptor_merge_dist);
+      storable.merge_gate, storable.merge_radius,
+      storable.descriptor_merge_dist);
+  const bool has_covs = storable.covariances.size() >=
+                        static_cast<size_t>(storable.num_landmarks) * 9;
 
   const int n = static_cast<int>(storable.num_landmarks);
   const int desc_cols =
@@ -178,6 +282,10 @@ inline auto IntensityFeatureMap::fromStorable(
     Landmark lm;
     lm.p << storable.points[i * 3 + 0], storable.points[i * 3 + 1],
         storable.points[i * 3 + 2];
+    if (has_covs)
+      for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 3; ++c)
+          lm.cov(r, c) = storable.covariances[i * 9 + r * 3 + c];
     lm.descriptor = cv::Mat(1, desc_cols, CV_8U);
     std::memcpy(lm.descriptor.data, storable.descriptors.data() + i * desc_cols,
                 desc_cols);
@@ -186,10 +294,6 @@ inline auto IntensityFeatureMap::fromStorable(
     lm.num_obs = storable.num_obs[i];
     data->landmarks_.emplace_back(std::move(lm));
   }
-  // rebuild the voxel map (tolerate collisions from averaged positions)
-  data->samples_.reserve(data->landmarks_.size());
-  for (size_t i = 0; i < data->landmarks_.size(); ++i)
-    data->samples_.try_emplace(data->getKey(data->landmarks_[i].p), i);
 
   data->vertex_id_ = tactic::VertexId(storable.vertex_id);
   using namespace vtr::common;
@@ -199,7 +303,8 @@ inline auto IntensityFeatureMap::fromStorable(
 
 inline auto IntensityFeatureMap::toStorable() const -> IntensityFeatureMapMsg {
   IntensityFeatureMapMsg storable;
-  storable.dl = dl_;
+  storable.merge_gate = merge_gate_;
+  storable.merge_radius = merge_radius_;
   storable.descriptor_merge_dist = descriptor_merge_dist_;
 
   const int n = static_cast<int>(landmarks_.size());
@@ -208,6 +313,7 @@ inline auto IntensityFeatureMap::toStorable() const -> IntensityFeatureMapMsg {
   storable.num_landmarks = static_cast<uint32_t>(n);
   storable.descriptor_cols = static_cast<uint32_t>(desc_cols);
   storable.points.resize(n * 3);
+  storable.covariances.resize(n * 9);
   storable.descriptors.resize(n * desc_cols);
   storable.responses.resize(n);
   storable.life_times.resize(n);
@@ -217,6 +323,9 @@ inline auto IntensityFeatureMap::toStorable() const -> IntensityFeatureMapMsg {
     storable.points[i * 3 + 0] = lm.p.x();
     storable.points[i * 3 + 1] = lm.p.y();
     storable.points[i * 3 + 2] = lm.p.z();
+    for (int r = 0; r < 3; ++r)
+      for (int c = 0; c < 3; ++c)
+        storable.covariances[i * 9 + r * 3 + c] = lm.cov(r, c);
     std::memcpy(storable.descriptors.data() + i * desc_cols,
                 lm.descriptor.data, desc_cols);
     storable.responses[i] = lm.response;

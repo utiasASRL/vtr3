@@ -2,19 +2,24 @@
  * \file odometry_liv_module.hpp
  * \author Wenda Zhao, Autonomous Space Robotics Lab (ASRL)
  *
- * LIV odometry module: combines ICP point-to-plane with motion-distorted
- * visual reprojection error in a single STEAM optimisation.
+ * LIV odometry module: combines ICP point-to-plane with lidar
+ * intensity-image features in a single STEAM optimisation.
  *
  * Extends the existing OdometryICPModule with:
- *   1. ORB feature matching between consecutive intensity images
- *   2. MD-RANSAC for outlier rejection (constant body velocity model)
- *   3. Reprojection error cost terms added alongside ICP p2p terms
+ *   1. ORB feature matching (mutual nearest neighbours) against the sliding
+ *      landmark map, with the previous scan as fallback
+ *   2. MD-RANSAC for outlier rejection (constant body velocity, 6-DoF)
+ *   3. 3-D point-to-point cost terms with propagated covariances, added
+ *      alongside the ICP terms (the 2-D reprojection residual is kept as
+ *      an option, visual_residual: reproj)
  *
  * References:
  *   - LIVO: Lidar-Inertial-Visual Odometry 
  *   - VTR3 odometry_icp_module.cpp (ASRL)
  */
 #pragma once
+
+#include <string>
 
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
@@ -71,32 +76,50 @@ class OdometryLIVModule : public tactic::BaseModule {
     bool remove_orientation = false;
 
     // ────────── Visual (LIV) parameters ──────────
-    /// Reprojection error noise (pixels, isotropic σ)
+    /// Feature residual: "p2p" (3-D point-to-point with propagated
+    /// covariances) or "reproj" (2-D reprojection + optional range)
+    std::string visual_residual = "p2p";
+    /// p2p: scale of the intensity-feature weights relative to the lidar
+    /// weights. The lidar term keeps the unit-less weight of the lidar-only
+    /// pipeline (normal_score · n nᵀ); the feature information is
+    ///   W = intensity_feature_scale · (Σ_landmark + R Σ_feature Rᵀ)⁻¹.
+    /// Larger: the features count more. Tune by hand.
+    double intensity_feature_scale = 9.0e-4;
+    /// p2p: Cauchy scale on the Mahalanobis distance of a feature residual,
+    /// before the intensity_feature_scale factor (<= 0: least squares)
+    double feature_cauchy_k = 3.0;
+    /// 1-σ of a feature position when it comes without a covariance [m]
+    double default_feature_sigma = 0.1;
+    /// reproj: reprojection error noise (pixels, isotropic σ)
     double sigma_pixel = 1.0;
-    /// Cauchy loss function kernel width for reprojection error
+    /// reproj: Cauchy loss function kernel width for reprojection error
     double reproj_loss_sigma = 1.0;
-    /// MD-RANSAC: max iterations
-    int ransac_max_iterations = 200;
-    /// MD-RANSAC: inlier threshold in pixels
-    double ransac_inlier_threshold = 3.0;
+    /// Descriptor matching: max Hamming distance of a mutual nearest neighbour
+    double match_max_hamming = 50.0;
+    /// MD-RANSAC: hypotheses at most (adaptive, stops at ransac_confidence)
+    int ransac_max_iterations = 1000;
+    double ransac_confidence = 0.999;
+    /// MD-RANSAC: a match is an inlier below both thresholds
+    double ransac_inlier_threshold = 3.0;  ///< [px]
+    double ransac_inlier_range = 0.5;      ///< [m]
     /// MD-RANSAC: minimum number of inliers
     int ransac_min_inliers = 10;
+    /// MD-RANSAC: Gauss-Newton steps per hypothesis, refinement rounds
+    int ransac_gn_steps = 3;
+    int ransac_refine_rounds = 2;
     /// Enable/disable visual cost terms (can run pure ICP if false)
     bool use_visual = true;
     /// Enable/disable lidar ICP cost terms (can run pure visual if false)
     bool use_lidar = true;
 
-    /// Match live features against the sliding visual landmark map and build
-    /// the visual costs from map landmarks (falls back to frame-to-frame
-    /// matching when the map yields too few matches)
+    /// Match live features against the sliding visual landmark map (falls
+    /// back to the previous scan's features when the map yields too few
+    /// MD-RANSAC inliers)
     bool use_feature_map_matching = false;
-    /// Max pixel distance between predicted and observed projection when
-    /// gating map matches (uses the prior-extrapolated pose)
-    double map_match_max_px = 20.0;
-    /// Min number of map matches to use map-based costs
+    /// Fewer map inliers than this: try the previous scan's features
     int map_match_min_matches = 10;
 
-    /// Enable/disable range cost terms on visual matches
+    /// reproj: enable/disable range cost terms on visual matches
     bool use_range_cost = false;
     /// Range measurement noise (metres, 1-σ)
     double sigma_range = 0.1;

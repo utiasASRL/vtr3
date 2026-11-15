@@ -71,11 +71,13 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   tactic::Cache<IntensityFeatures> live_intensity_features;
   /// Previous keyframe ORB features (persists across frames for tracking)
   tactic::Cache<std::shared_ptr<IntensityFeatures>> prev_intensity_features;
-  /// Map ORB features recalled from graph (for localization)
-  tactic::Cache<std::vector<IntensityFeatures>> map_intensity_features;
   /// Live features motion-undistorted to scan end (sensor frame), produced by
   /// odometry on success for the visual map maintenance module
   tactic::Cache<IntensityFeatures> undistorted_intensity_features;
+  /// For every feature of undistorted_intensity_features, the index of the
+  /// landmark of sliding_feature_map_odo that odometry matched it to
+  /// (mutual nearest neighbour + MD-RANSAC inlier), -1 = none
+  tactic::Cache<std::vector<int>> feature_matched_landmark;
   /// Sliding visual landmark map for odometry (odometry map frame)
   tactic::Cache<IntensityFeatureMap> sliding_feature_map_odo;
 
