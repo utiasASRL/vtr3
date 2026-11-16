@@ -139,6 +139,10 @@ if(BUILD_TESTING)
   ament_add_gmock(test_md_ransac test/test_md_ransac.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(test_md_ransac ${PROJECT_NAME}_pipeline)
 
+  # batched lidar point-to-plane cost term vs one steam term per point
+  ament_add_gmock(test_p2plane_batch test/test_p2plane_batch.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_p2plane_batch ${PROJECT_NAME}_pipeline)
+
   find_package(Boost REQUIRED)
   find_package(PCL REQUIRED)
   add_executable(example_himmelsbach test/segmentation/example_himmelsbach.cpp)

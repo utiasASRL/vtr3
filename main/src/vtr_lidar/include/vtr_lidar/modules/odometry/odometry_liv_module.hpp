@@ -74,6 +74,10 @@ class OdometryLIVModule : public tactic::BaseModule {
     double gyro_cov = 1e-3;
     bool use_gyro = true;
     bool remove_orientation = false;
+    /// Lidar point-to-plane terms as a few batched cost terms (same cost and
+    /// Gauss-Newton terms as one steam term per point, much less overhead).
+    /// false: one WeightedLeastSqCostTerm per point (previous code).
+    bool batch_lidar_cost = true;
 
     // ────────── Visual (LIV) parameters ──────────
     /// Feature residual: "p2p" (3-D point-to-point with propagated

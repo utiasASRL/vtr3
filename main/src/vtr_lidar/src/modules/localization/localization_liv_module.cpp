@@ -298,7 +298,12 @@ void LocalizationLIVModule::run_(QueryCache& qdata0, OutputCache& output,
   if (config_->use_visual && projector_ && have_feature_map &&
       qdata.live_intensity_features.valid() &&
       !qdata.live_intensity_features->empty()) {
-    const auto& live_feat = *qdata.live_intensity_features;
+    // live features in the frame of the undistorted lidar cloud (sensor
+    // frame at the stamp, motion-undistorted by odometry); the features as
+    // measured only if odometry did not provide them
+    const auto& live_feat = qdata.stamp_intensity_features.valid()
+                                ? *qdata.stamp_intensity_features
+                                : *qdata.live_intensity_features;
     const auto& feature_map = *qdata.feature_map_loc;
 
     const cv::Mat map_descriptors = feature_map.descriptors();

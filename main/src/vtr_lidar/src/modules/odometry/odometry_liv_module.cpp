@@ -27,6 +27,7 @@
 
 #include "vtr_lidar/features/descriptor_matching.hpp"
 #include "vtr_lidar/features/md_ransac.hpp"
+#include "vtr_lidar/features/p2plane_batch_cost_term.hpp"
 #include "vtr_lidar/features/range_error_eval.hpp"
 #include "vtr_lidar/features/reproj_error_eval.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
@@ -135,6 +136,7 @@ auto OdometryLIVModule::Config::fromROS(
   config->gyro_cov = node->declare_parameter<double>(param_prefix + ".gyro_cov", config->gyro_cov);
   config->use_gyro = node->declare_parameter<bool>(param_prefix + ".use_gyro", config->use_gyro);
   config->remove_orientation = node->declare_parameter<bool>(param_prefix + ".remove_orientation", false);
+  config->batch_lidar_cost = node->declare_parameter<bool>(param_prefix + ".batch_lidar_cost", config->batch_lidar_cost);
 
   // ── Visual (LIV) ──
   config->sigma_pixel = node->declare_parameter<double>(param_prefix + ".sigma_pixel", config->sigma_pixel);
@@ -422,14 +424,33 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
   /// pose at the end of the scan, so that pose is evaluated once and applied
   /// to all points in one matrix product (same result, no per-point
   /// interpolator).
+  // The points of a scan share a few firing times (one per measurement
+  // column): with use_trajectory_estimation, the interpolated pose is
+  // evaluated once per firing time and applied to all points of that time.
+  std::vector<int64_t> point_times;   // unique firing times, sorted
+  std::vector<int> point_time_index;  // firing time of each query point
+  if (config_->use_trajectory_estimation) {
+    point_times.reserve(query_points.size());
+    for (const auto& pt : query_points) point_times.push_back(pt.timestamp);
+    std::sort(point_times.begin(), point_times.end());
+    point_times.erase(std::unique(point_times.begin(), point_times.end()), point_times.end());
+    point_time_index.resize(query_points.size());
+    for (size_t i = 0; i < query_points.size(); ++i)
+      point_time_index[i] = static_cast<int>(
+          std::lower_bound(point_times.begin(), point_times.end(), query_points[i].timestamp) - point_times.begin());
+  }
+  std::vector<Eigen::Matrix4f> T_m_s_times(point_times.size());
+
   const auto alignQueryPoints = [&]() {
     if (config_->use_trajectory_estimation) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+      for (size_t k = 0; k < point_times.size(); k++) {
+        const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(point_times[k]));
+        T_m_s_times[k] = inverse(compose(T_s_r_var, T_r_m_intp_eval))->evaluate().matrix().cast<float>();
+      }
+#pragma omp parallel for schedule(static) num_threads(config_->num_threads)
       for (unsigned i = 0; i < query_points.size(); i++) {
-        const auto& qry_time = query_points[i].timestamp;
-        const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(qry_time));
-        const auto T_m_s_intp_eval = inverse(compose(T_s_r_var, T_r_m_intp_eval));
-        const auto T_m_s = T_m_s_intp_eval->evaluate().matrix().cast<float>();
+        const Eigen::Matrix4f& T_m_s = T_m_s_times[point_time_index[i]];
         aligned_mat.block<4, 1>(0, i) = T_m_s * query_mat.block<4, 1>(0, i);
         aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
       }
@@ -677,7 +698,49 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
     trajectory->addPriorCostTerms(problem);
 
     // ── ICP point-to-plane cost terms ──
-    if (config_->use_lidar) {
+    if (config_->use_lidar && config_->batch_lidar_cost) {
+      // Batched: the same residuals and weights as the per-point terms below,
+      // summed per pose (one pose for a rigid scan, one per firing time with
+      // trajectory estimation) and chained to the states once. The
+      // correspondences are split into many small cost terms, since STEAM
+      // parallelizes over cost terms.
+      struct Corr { int64_t time; P2PlaneBatchCostTerm::Point point; };
+      std::vector<Corr> corrs;
+      corrs.reserve(filtered_sample_inds.size());
+      for (const auto& ind : filtered_sample_inds) {
+        if (point_map[ind.second].normal_score <= 0.0) continue;
+        const Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
+        Corr c;
+        c.time = (config_->use_trajectory_estimation) ? query_points[ind.first].timestamp : frame_end_time;
+        c.point.query = query_mat.block<3, 1>(0, ind.first).cast<double>();
+        c.point.reference = map_mat.block<3, 1>(0, ind.second).cast<double>();
+        c.point.W = point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity();
+        corrs.push_back(c);
+      }
+      // contiguous times per chunk -> few pose evaluators per chunk
+      if (config_->use_trajectory_estimation)
+        std::stable_sort(corrs.begin(), corrs.end(), [](const Corr& a, const Corr& b) { return a.time < b.time; });
+      // Many small terms (about 32 points each, at most 256): STEAM hands the
+      // cost terms to its threads in contiguous blocks (static OpenMP
+      // schedule), and the lidar terms sit between the priors and the
+      // feature terms. With only one term per thread, all lidar work would
+      // fall into one or two threads' blocks.
+      const size_t num_chunks = std::max<size_t>(1, std::min<size_t>(256, corrs.size() / 32));
+      const size_t chunk_size = (corrs.size() + num_chunks - 1) / num_chunks;
+      for (size_t start = 0; start < corrs.size(); start += chunk_size) {
+        const size_t end = std::min(corrs.size(), start + chunk_size);
+        std::vector<P2PlaneBatchCostTerm::Group> groups;
+        for (size_t k = start; k < end; ++k) {
+          if (groups.empty() || corrs[k].time != corrs[k - 1].time) {
+            const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(corrs[k].time));
+            groups.push_back({inverse(compose(T_s_r_var, T_r_m_intp_eval)), {}});
+          }
+          groups.back().points.push_back(corrs[k].point);
+        }
+        problem.addCostTerm(P2PlaneBatchCostTerm::MakeShared(std::move(groups), config_->remove_orientation));
+      }
+    } else if (config_->use_lidar) {
+    // per-point cost terms (one steam evaluator graph per point)
     auto loss_func_icp = L2LossFunc::MakeShared();
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto& ind : filtered_sample_inds) {
@@ -1129,49 +1192,68 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
     *qdata.odo_success = false;
   }
 
-  // ── Features for the map maintenance and for the next frame ──
-  // On success, move every feature 3-D point from its time featureTime(t) to
-  // frame_end_time using the optimized trajectory (its covariance is rotated
-  // the same way). With use_trajectory_estimation this is the motion
-  // undistortion of the features; with a rigid scan featureTime(t) is
-  // frame_end_time and the points are kept as measured, as the lidar points. These features go to the visual map maintenance
-  // module, together with the landmark each one was matched to, and become
-  // the previous-scan features of the next frame: they are then expressed
-  // exactly at its frame_start_time, where the prior pose is.
-  // On failure nothing is stored: the prior pose and the previous-scan
-  // features both stay at the last successful scan.
-  if (qdata.live_intensity_features.valid() && config_->use_visual &&
-      *qdata.odo_success) {
-    auto feat_copy = std::make_shared<IntensityFeatures>(*qdata.live_intensity_features);
-    const bool has_covs = feat_copy->hasCovs();
-    const auto T_r_m_end_eval = trajectory->getPoseInterpolator(Time(static_cast<int64_t>(frame_end_time)));
-    const Eigen::Matrix4d T_s_m_end = compose(T_s_r_var, T_r_m_end_eval)->evaluate().matrix();
-    for (int i = 0; i < feat_copy->size(); ++i) {
-      const Eigen::Vector3d p = feat_copy->points_3d.col(i);
-      if (!p.allFinite() || p.norm() < 0.1) continue;
-      const int64_t t_feat = (i < static_cast<int>(feat_copy->timestamps.size()))
-          ? featureTime(feat_copy->timestamps[i])
-          : frame_end_time;
-      const auto T_r_m_t_eval = trajectory->getPoseInterpolator(Time(t_feat));
-      const Eigen::Matrix4d T_m_s_t = inverse(compose(T_s_r_var, T_r_m_t_eval))->evaluate().matrix();
-      const Eigen::Matrix4d T_send_st = T_s_m_end * T_m_s_t;
-      const Eigen::Vector4d p_h = (Eigen::Vector4d() << p, 1.0).finished();
-      feat_copy->points_3d.col(i) = (T_send_st * p_h).head<3>();
-      if (has_covs) {
-        const Eigen::Matrix3d R = T_send_st.block<3, 3>(0, 0);
-        feat_copy->covs[i] = R * feat_copy->covs[i] * R.transpose();
+  // ── Features for the map maintenance, the next frame and localization ──
+  // On success, every feature 3-D point is moved from its time featureTime(t)
+  // with the optimized trajectory (its covariance is rotated the same way):
+  //  * to the sensor frame at frame_end_time: these go to the visual map
+  //    maintenance module, together with the landmark each one was matched
+  //    to, and become the previous-scan features of the next frame (they are
+  //    then expressed exactly at its frame_start_time, where the prior pose
+  //    is);
+  //  * to the sensor frame at the scan stamp: the frame of the undistorted
+  //    lidar cloud, used with it by the localization.
+  // With use_trajectory_estimation this is the motion undistortion of the
+  // features; with a rigid scan featureTime(t) is frame_end_time, as for the
+  // lidar points.
+  // On failure, the map and next-frame features are not updated (the prior
+  // pose and the previous-scan features both stay at the last successful
+  // scan), and localization gets the features as measured, as it gets the
+  // lidar points.
+  if (qdata.live_intensity_features.valid() && config_->use_visual) {
+    if (*qdata.odo_success) {
+      auto feat_end = std::make_shared<IntensityFeatures>(*qdata.live_intensity_features);
+      auto feat_stamp = std::make_shared<IntensityFeatures>(*qdata.live_intensity_features);
+      const bool has_covs = feat_end->hasCovs();
+      const auto T_r_m_end_eval = trajectory->getPoseInterpolator(Time(static_cast<int64_t>(frame_end_time)));
+      const Eigen::Matrix4d T_s_m_end = compose(T_s_r_var, T_r_m_end_eval)->evaluate().matrix();
+      const Eigen::Matrix4d T_s_m_stamp = T_m_s_eval->evaluate().matrix().inverse();
+      for (int i = 0; i < feat_end->size(); ++i) {
+        const Eigen::Vector3d p = feat_end->points_3d.col(i);
+        if (!p.allFinite() || p.norm() < 0.1) continue;
+        const bool has_time = i < static_cast<int>(feat_end->timestamps.size());
+        const int64_t t_feat = has_time ? featureTime(feat_end->timestamps[i]) : frame_end_time;
+        const auto T_r_m_t_eval = trajectory->getPoseInterpolator(Time(t_feat));
+        const Eigen::Matrix4d T_m_s_t = inverse(compose(T_s_r_var, T_r_m_t_eval))->evaluate().matrix();
+        const Eigen::Vector4d p_h = (Eigen::Vector4d() << p, 1.0).finished();
+        const Eigen::Matrix4d T_send_st = T_s_m_end * T_m_s_t;
+        const Eigen::Matrix4d T_sstamp_st = T_s_m_stamp * T_m_s_t;
+        feat_end->points_3d.col(i) = (T_send_st * p_h).head<3>();
+        feat_stamp->points_3d.col(i) = (T_sstamp_st * p_h).head<3>();
+        if (has_covs) {
+          const Eigen::Matrix3d R_end = T_send_st.block<3, 3>(0, 0);
+          const Eigen::Matrix3d R_stamp = T_sstamp_st.block<3, 3>(0, 0);
+          feat_end->covs[i] = R_end * feat_end->covs[i] * R_end.transpose();
+          feat_stamp->covs[i] = R_stamp * feat_stamp->covs[i] * R_stamp.transpose();
+        }
+        if (has_time) {
+          feat_end->timestamps[i] = frame_end_time;  // now expressed at scan end
+          feat_stamp->timestamps[i] = query_stamp;   // now expressed at the stamp
+        }
       }
-      if (i < static_cast<int>(feat_copy->timestamps.size()))
-        feat_copy->timestamps[i] = frame_end_time;  // now expressed at scan end
+      // undistorted features (sensor frame at scan end) for the visual map
+      // maintenance module
+      qdata.undistorted_intensity_features = feat_end;
+      if (static_cast<int>(matched_landmark.size()) != feat_end->size())
+        matched_landmark.assign(feat_end->size(), -1);
+      qdata.feature_matched_landmark = matched_landmark;
+      // use = to overwrite the value injected by the pipeline
+      qdata.prev_intensity_features = feat_end;
+      // undistorted features (sensor frame at the stamp) for localization
+      qdata.stamp_intensity_features = feat_stamp;
+    } else {
+      qdata.stamp_intensity_features =
+          std::make_shared<IntensityFeatures>(*qdata.live_intensity_features);
     }
-    // expose the undistorted features (sensor frame at scan end) for the
-    // visual map maintenance module
-    qdata.undistorted_intensity_features = feat_copy;
-    if (static_cast<int>(matched_landmark.size()) != feat_copy->size())
-      matched_landmark.assign(feat_copy->size(), -1);
-    qdata.feature_matched_landmark = matched_landmark;
-    // use = to overwrite the value injected by the pipeline
-    qdata.prev_intensity_features = feat_copy;
   }
   timers.stop(StageTimers::OUTPUTS);
   CLOG(DEBUG, "lidar.odometry_liv")

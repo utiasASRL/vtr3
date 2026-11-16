@@ -78,6 +78,10 @@ struct LidarQueryCache : virtual public tactic::QueryCache {
   /// landmark of sliding_feature_map_odo that odometry matched it to
   /// (mutual nearest neighbour + MD-RANSAC inlier), -1 = none
   tactic::Cache<std::vector<int>> feature_matched_landmark;
+  /// Live features in the sensor frame at the scan stamp (the frame of
+  /// undistorted_point_cloud), motion-undistorted by odometry on success and
+  /// as measured otherwise; used by the LIV localization
+  tactic::Cache<IntensityFeatures> stamp_intensity_features;
   /// Sliding visual landmark map for odometry (odometry map frame)
   tactic::Cache<IntensityFeatureMap> sliding_feature_map_odo;
 
