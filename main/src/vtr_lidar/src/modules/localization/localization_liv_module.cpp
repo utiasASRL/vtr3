@@ -26,6 +26,7 @@
 #include <cmath>
 
 #include "vtr_lidar/data_types/intensity_features.hpp"
+#include "vtr_lidar/features/p2plane_batch_cost_term.hpp"
 #include "vtr_lidar/features/reproj_error_eval.hpp"
 #include "vtr_lidar/utils/nanoflann_utils.hpp"
 
@@ -83,6 +84,7 @@ auto LocalizationLIVModule::Config::fromROS(
   config->reproj_loss_sigma = node->declare_parameter<double>(param_prefix + ".reproj_loss_sigma", config->reproj_loss_sigma);
   config->use_visual = node->declare_parameter<bool>(param_prefix + ".use_visual", config->use_visual);
   config->use_lidar = node->declare_parameter<bool>(param_prefix + ".use_lidar", config->use_lidar);
+  config->batch_lidar_cost = node->declare_parameter<bool>(param_prefix + ".batch_lidar_cost", config->batch_lidar_cost);
   config->use_feature_map_matching = node->declare_parameter<bool>(param_prefix + ".use_feature_map_matching", config->use_feature_map_matching);
 
   // ── OusterProjector sensor metadata ──
@@ -411,7 +413,34 @@ void LocalizationLIVModule::run_(QueryCache& qdata0, OutputCache& output,
       problem.addCostTerm(prior_cost_term);
 
     // ── ICP point-to-plane cost terms ──
-    if (config_->use_lidar) {
+    if (config_->use_lidar && config_->batch_lidar_cost) {
+      // Batched, as in the LIV odometry: the same residuals and weights as
+      // the per-point terms below, all with the one pose T_m_s, summed in the
+      // pose space and chained to T_r_v once. Many small terms (about 32
+      // points each, at most 256), because STEAM hands the cost terms to its
+      // threads in contiguous blocks.
+      std::vector<P2PlaneBatchCostTerm::Point> points;
+      points.reserve(filtered_sample_inds.size());
+      for (const auto& ind : filtered_sample_inds) {
+        if (point_map[ind.second].normal_score <= 0.0) continue;
+        const Eigen::Vector3d nrm = map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
+        P2PlaneBatchCostTerm::Point pt;
+        pt.query = query_mat.block<3, 1>(0, ind.first).cast<double>();
+        pt.reference = map_mat.block<3, 1>(0, ind.second).cast<double>();
+        pt.W = point_map[ind.second].normal_score * (nrm * nrm.transpose()) + 1e-5 * Eigen::Matrix3d::Identity();
+        points.push_back(pt);
+      }
+      const size_t num_chunks = std::max<size_t>(1, std::min<size_t>(256, points.size() / 32));
+      const size_t chunk_size = (points.size() + num_chunks - 1) / num_chunks;
+      for (size_t start = 0; start < points.size(); start += chunk_size) {
+        const size_t end = std::min(points.size(), start + chunk_size);
+        std::vector<P2PlaneBatchCostTerm::Group> groups(1);
+        groups[0].T_ms = T_m_s_eval;
+        groups[0].points.assign(points.begin() + start, points.begin() + end);
+        problem.addCostTerm(P2PlaneBatchCostTerm::MakeShared(std::move(groups)));
+      }
+    } else if (config_->use_lidar) {
+      // per-point cost terms (one steam evaluator graph per point)
       auto loss_func_icp = L2LossFunc::MakeShared();
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (const auto& ind : filtered_sample_inds) {

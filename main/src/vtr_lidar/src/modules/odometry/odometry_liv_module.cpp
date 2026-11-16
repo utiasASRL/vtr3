@@ -24,6 +24,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 
 #include "vtr_lidar/features/descriptor_matching.hpp"
 #include "vtr_lidar/features/md_ransac.hpp"
@@ -401,6 +402,20 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
   /// Compound transform for alignment
   const auto T_m_s_eval = inverse(compose(T_s_r_var, T_r_m_eval));
 
+  /// Pose evaluators T_m_s(t) (sensor at time t -> map), created once per
+  /// scan and reused in every ICP step: an evaluator reads the current knot
+  /// values each time it is evaluated, and its interpolation coefficients
+  /// depend only on t and the knot times. Filled lazily, so only call it
+  /// outside parallel regions.
+  using PoseEvalPtr = Evaluable<lgmath::se3::Transformation>::ConstPtr;
+  std::unordered_map<int64_t, PoseEvalPtr> T_m_s_cache;
+  const auto T_m_s_at = [&](const int64_t t) -> PoseEvalPtr {
+    auto it = T_m_s_cache.find(t);
+    if (it == T_m_s_cache.end())
+      it = T_m_s_cache.emplace(t, inverse(compose(T_s_r_var, trajectory->getPoseInterpolator(Time(t))))).first;
+    return it->second;
+  };
+
   /// Initialize aligned points
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
 
@@ -440,14 +455,16 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
           std::lower_bound(point_times.begin(), point_times.end(), query_points[i].timestamp) - point_times.begin());
   }
   std::vector<Eigen::Matrix4f> T_m_s_times(point_times.size());
+  std::vector<PoseEvalPtr> T_m_s_point_evals;  // pose evaluator per firing time
+  T_m_s_point_evals.reserve(point_times.size());
+  for (const auto t : point_times) T_m_s_point_evals.push_back(T_m_s_at(t));
+  const PoseEvalPtr T_m_s_end_eval = T_m_s_at(frame_end_time);
 
   const auto alignQueryPoints = [&]() {
     if (config_->use_trajectory_estimation) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-      for (size_t k = 0; k < point_times.size(); k++) {
-        const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(point_times[k]));
-        T_m_s_times[k] = inverse(compose(T_s_r_var, T_r_m_intp_eval))->evaluate().matrix().cast<float>();
-      }
+      for (size_t k = 0; k < point_times.size(); k++)
+        T_m_s_times[k] = T_m_s_point_evals[k]->evaluate().matrix().cast<float>();
 #pragma omp parallel for schedule(static) num_threads(config_->num_threads)
       for (unsigned i = 0; i < query_points.size(); i++) {
         const Eigen::Matrix4f& T_m_s = T_m_s_times[point_time_index[i]];
@@ -455,8 +472,7 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
         aligned_norms_mat.block<4, 1>(0, i) = T_m_s * query_norms_mat.block<4, 1>(0, i);
       }
     } else {
-      const auto T_r_m_end_eval = trajectory->getPoseInterpolator(Time(frame_end_time));
-      const Eigen::Matrix4f T_m_s = inverse(compose(T_s_r_var, T_r_m_end_eval))->evaluate().matrix().cast<float>();
+      const Eigen::Matrix4f T_m_s = T_m_s_end_eval->evaluate().matrix().cast<float>();
       aligned_mat = T_m_s * query_mat;
       aligned_norms_mat = T_m_s * query_norms_mat;
     }
@@ -731,10 +747,8 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
         const size_t end = std::min(corrs.size(), start + chunk_size);
         std::vector<P2PlaneBatchCostTerm::Group> groups;
         for (size_t k = start; k < end; ++k) {
-          if (groups.empty() || corrs[k].time != corrs[k - 1].time) {
-            const auto T_r_m_intp_eval = trajectory->getPoseInterpolator(Time(corrs[k].time));
-            groups.push_back({inverse(compose(T_s_r_var, T_r_m_intp_eval)), {}});
-          }
+          if (groups.empty() || corrs[k].time != corrs[k - 1].time)
+            groups.push_back({T_m_s_at(corrs[k].time), {}});
           groups.back().points.push_back(corrs[k].point);
         }
         problem.addCostTerm(P2PlaneBatchCostTerm::MakeShared(std::move(groups), config_->remove_orientation));
@@ -832,8 +846,7 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
 
       int num_added = 0;
       for (const auto& m : feature_matches) {
-        const auto T_r_m_t_eval = trajectory->getPoseInterpolator(Time(featureTime(m.t2)));
-        const auto T_m_s_t_eval = inverse(compose(T_s_r_var, T_r_m_t_eval));
+        const auto T_m_s_t_eval = T_m_s_at(featureTime(m.t2));
         const Eigen::Matrix3d R_m_s = T_m_s_t_eval->evaluate().matrix().block<3, 3>(0, 0);
 
         const Eigen::Matrix3d cov = m.cov_ref + R_m_s * m.cov2 * R_m_s.transpose();
@@ -1048,8 +1061,7 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
     std::vector<double> maha_sq;
     maha_sq.reserve(feature_matches.size());
     for (const auto& m : feature_matches) {
-      const auto T_r_m_t_eval = trajectory->getPoseInterpolator(Time(featureTime(m.t2)));
-      const Eigen::Matrix4d T_m_s_t = inverse(compose(T_s_r_var, T_r_m_t_eval))->evaluate().matrix();
+      const Eigen::Matrix4d T_m_s_t = T_m_s_at(featureTime(m.t2))->evaluate().matrix();
       const Eigen::Matrix3d R_m_s = T_m_s_t.block<3, 3>(0, 0);
       const Eigen::Vector3d e = m.p_ref - (R_m_s * m.p2 + T_m_s_t.block<3, 1>(0, 3));
       const Eigen::Matrix3d cov = m.cov_ref + R_m_s * m.cov2 * R_m_s.transpose();
@@ -1222,8 +1234,7 @@ void OdometryLIVModule::run_(QueryCache& qdata0, OutputCache&,
         if (!p.allFinite() || p.norm() < 0.1) continue;
         const bool has_time = i < static_cast<int>(feat_end->timestamps.size());
         const int64_t t_feat = has_time ? featureTime(feat_end->timestamps[i]) : frame_end_time;
-        const auto T_r_m_t_eval = trajectory->getPoseInterpolator(Time(t_feat));
-        const Eigen::Matrix4d T_m_s_t = inverse(compose(T_s_r_var, T_r_m_t_eval))->evaluate().matrix();
+        const Eigen::Matrix4d T_m_s_t = T_m_s_at(t_feat)->evaluate().matrix();
         const Eigen::Vector4d p_h = (Eigen::Vector4d() << p, 1.0).finished();
         const Eigen::Matrix4d T_send_st = T_s_m_end * T_m_s_t;
         const Eigen::Matrix4d T_sstamp_st = T_s_m_stamp * T_m_s_t;

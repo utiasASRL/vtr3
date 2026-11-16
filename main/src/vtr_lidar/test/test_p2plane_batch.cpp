@@ -24,13 +24,13 @@ using namespace vtr::lidar;
 
 namespace {
 
-struct Setup {
+struct TrajSetup {
   const_vel::Interface::Ptr trajectory;
   std::vector<StateVarBase::Ptr> state_vars;
   SE3StateVar::Ptr T_s_r_var;
   int64_t t0 = 1'000'000'000, t1 = 1'100'000'000;
 
-  Setup() {
+  TrajSetup() {
     Eigen::Matrix<double, 6, 1> qc;
     qc << 1.0, 0.1, 0.1, 0.1, 0.1, 1.0;
     trajectory = const_vel::Interface::MakeShared(qc);
@@ -62,7 +62,7 @@ struct Corr {
   P2PlaneBatchCostTerm::Point p;
 };
 
-std::vector<Corr> randomCorrs(const Setup& s, const int n, const bool rigid) {
+std::vector<Corr> randomCorrs(const TrajSetup& s, const int n, const bool rigid) {
   std::mt19937 rng(5);
   std::uniform_real_distribution<double> u(-20.0, 20.0), ut(0.0, 1.0);
   std::vector<Corr> out;
@@ -81,7 +81,7 @@ std::vector<Corr> randomCorrs(const Setup& s, const int n, const bool rigid) {
 }
 
 void compare(const bool rigid) {
-  Setup s;
+  TrajSetup s;
   const auto corrs = randomCorrs(s, 300, rigid);
 
   // reference: one weighted least-squares term per point
@@ -131,6 +131,51 @@ void compare(const bool rigid) {
 TEST(LIDAR, p2plane_batch_matches_per_point_rigid) { compare(true); }
 
 TEST(LIDAR, p2plane_batch_matches_per_point_continuous_time) { compare(false); }
+
+TEST(LIDAR, p2plane_batch_matches_per_point_single_pose) {
+  // as the LIV localization: T_ms = (T_sr T_rv T_vm)^-1 with only T_rv free
+  Eigen::Matrix<double, 6, 1> xi_sr, xi_rv, xi_vm;
+  xi_sr << 0.2, 0.0, 0.5, 0.0, 0.0, 3.14;
+  xi_rv << 0.4, -0.3, 0.05, 0.01, -0.02, 0.2;
+  xi_vm << -3.0, 1.0, 0.0, 0.0, 0.01, -0.5;
+  const auto T_sr = SE3StateVar::MakeShared(lgmath::se3::Transformation(xi_sr));
+  const auto T_rv = SE3StateVar::MakeShared(lgmath::se3::Transformation(xi_rv));
+  const auto T_vm = SE3StateVar::MakeShared(lgmath::se3::Transformation(xi_vm));
+  T_sr->locked() = true;
+  T_vm->locked() = true;
+  const auto T_ms = inverse(compose(T_sr, compose(T_rv, T_vm)));
+
+  TrajSetup s;  // only for the random points
+  const auto corrs = randomCorrs(s, 300, true);
+  OptimizationProblem per_point, batch;
+  per_point.addStateVariable(T_rv);
+  batch.addStateVariable(T_rv);
+  const auto loss = L2LossFunc::MakeShared();
+  std::vector<P2PlaneBatchCostTerm::Point> points;
+  for (const auto& c : corrs) {
+    const auto noise = StaticNoiseModel<3>::MakeShared(c.p.W, NoiseType::INFORMATION);
+    per_point.addCostTerm(WeightedLeastSqCostTerm<3>::MakeShared(
+        p2p::p2pError(T_ms, c.p.reference, c.p.query), noise, loss));
+    points.push_back(c.p);
+  }
+  for (size_t start = 0; start < points.size(); start += 32) {
+    std::vector<P2PlaneBatchCostTerm::Group> groups(1);
+    groups[0].T_ms = T_ms;
+    groups[0].points.assign(points.begin() + start, points.begin() + std::min(points.size(), start + 32));
+    batch.addCostTerm(P2PlaneBatchCostTerm::MakeShared(groups));
+  }
+  EXPECT_NEAR(batch.cost(), per_point.cost(), 1e-9 * per_point.cost());
+  per_point.getStateVector();
+  batch.getStateVector();
+  Eigen::SparseMatrix<double> A_ref, A_batch;
+  Eigen::VectorXd b_ref, b_batch;
+  per_point.buildGaussNewtonTerms(A_ref, b_ref);
+  batch.buildGaussNewtonTerms(A_batch, b_batch);
+  const Eigen::MatrixXd Ar(A_ref), Ab(A_batch);
+  ASSERT_EQ(Ar.rows(), 6);
+  EXPECT_LT((Ar - Ab).norm(), 1e-9 * Ar.norm());
+  EXPECT_LT((b_ref - b_batch).norm(), 1e-9 * b_ref.norm());
+}
 
 int main(int argc, char** argv) {
   vtr::logging::configureLogging("", true);

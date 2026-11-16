@@ -90,6 +90,10 @@ class LocalizationLIVModule : public tactic::BaseModule {
     bool use_visual = true;
     /// Enable/disable lidar ICP cost terms
     bool use_lidar = true;
+    /// Lidar point-to-plane terms as a few batched cost terms (same cost and
+    /// Gauss-Newton terms as one steam term per point, much less overhead).
+    /// false: one WeightedLeastSqCostTerm per point (previous code).
+    bool batch_lidar_cost = true;
     /// Match against the merged visual feature submap recalled from the
     /// teach graph (no visual costs when false or when no submap is stored)
     bool use_feature_map_matching = false;
